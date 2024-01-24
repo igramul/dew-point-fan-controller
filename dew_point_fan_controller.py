@@ -18,7 +18,7 @@ from pcf8574 import PCF8574
 from hd44780 import HD44780
 from lcd import LCD
 
-VERSION = '0.1.1'
+VERSION = '0.1.2'
 
 SCHALTmin = 5.0 #  minimum dew point difference at which the fan switches
 HYSTERESE = 1.0 #  distance from switch-on and switch-off point
@@ -62,12 +62,23 @@ i2c = machine.I2C(0, sda=machine.Pin(0), scl=machine.Pin(1), freq=400000)
 pcf8574 = PCF8574(i2c)
 hd44780 = HD44780(pcf8574, num_lines=4, num_columns=20)
 lcd = LCD(hd44780, pcf8574)
-lcd.backlight_on()
+
+touch_lcd_on = machine.Pin(28, machine.Pin.IN, machine.Pin.PULL_DOWN)
+
+timer_lcd_light = machine.Timer()
+def iluminate_lcd_background():
+    global lcd
+    print('LCD backlight on for 10s.')
+    lcd.backlight_on()
+    timer_lcd_light.init(mode=machine.Timer.ONE_SHOT, period=10000, callback=lambda t: lcd.backlight_off())
+
+touch_lcd_on.irq(lambda irq:iluminate_lcd_background(), machine.Pin.IRQ_RISING)
+
 lcd.write_line('Dew Point Fan Contr.', 0)
 lcd.write_line('--------------------', 1)
 lcd.write_line(f'   Version {VERSION}', 2)
 lcd.write_line('lburger@igramul.ch', 3)
-
+iluminate_lcd_background()
 
 with open('secrets.json') as fp:
     secrets = ujson.loads(fp.read())
@@ -250,6 +261,7 @@ def messung(timer):
     fan_relais.value(dew_point_controller.fan)
     for idx, line in enumerate(str(dew_point_controller).splitlines()):
         lcd.write_line(line, idx)
+
 
 async def main():
     print('Connecting to Network...')
