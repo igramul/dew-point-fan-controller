@@ -18,12 +18,12 @@ from pcf8574 import PCF8574
 from hd44780 import HD44780
 from lcd import LCD
 
-VERSION = '0.1.2'
+VERSION = '0.1.3'
 
-SCHALTmin = 5.0 #  minimum dew point difference at which the fan switches
-HYSTERESE = 1.0 #  distance from switch-on and switch-off point
+SWITCHmin = 5.0 #  minimum dew point difference at which the fan switches
+HYSTERESIS = 1.0 #  distance from switch-on and switch-off point
 TEMP_indoor_min = 10.0 #  minimum indoor temperature at which the ventilation is activated
-TEMP_oudside_min = -10.0 #  minimum outside temperature at which the ventilation is activated
+TEMP_outdoor_min = -10.0 #  minimum outdoor temperature at which the ventilation is activated
 
 ntptime.host = '1.europe.pool.ntp.org' # default time server
 
@@ -40,7 +40,7 @@ NetworkStat = {
     network.STAT_WRONG_PASSWORD: 'failed due to incorrect password',    #  -3
 }
 
-html = """<!DOCTYPE html>
+HTML = """<!DOCTYPE html>
 <html>
     <head> <title>Dew Point Fan Controller</title> </head>
     <body> <h1>Dew Point Fan Controller</h1>
@@ -48,6 +48,31 @@ html = """<!DOCTYPE html>
     </body>
 </html>
 """
+
+METRICS = """# HELP indoor_temp Indoor temperature in degree Celsius.
+# TYPE indoor_temp gauge
+indoor_temp %f
+# HELP indoor_hum Indoor humidity in percent.
+# TYPE indoor_hum gauge
+indoor_hum %f
+# HELP outdoor_temp Indoor temperature in degree Celsius.
+# TYPE outdoor_temp gauge
+outdoor_temp %f
+# HELP outdoor_hum Indoor humidity in percent.
+# TYPE outdoor_hum gauge
+outdoor_hum %f
+# HELP indoor_dew_point Indoor dew point in degree Celsius.
+# TYPE indoor_dew_point gauge
+indoor_dew_point %f
+# HELP outdoor_dew_point Indoor dew point in degree Celsius.
+# TYPE outdoor_dew_point gauge
+outdoor_dew_point %f
+# HELP measurement_counter Counter for the measurements taken since startup.
+# TYPE measurement_counter counter
+measurement_counter %i
+# HELP fan_state Fan state (1: on, 0: off)
+# TYPE fan_state gauge
+fan_state %i"""
 
 led_wlan = machine.Pin(17, machine.Pin.OUT)
 led_status = machine.Pin(18, machine.Pin.OUT)
@@ -110,9 +135,27 @@ def taupunkt(t, r):
 class Measurement(object):
     
     def __init__(self):
-        self.indoor = None
-        self.outside = None
-        
+        self.indoor_temp = None
+        self.indoor_hum = None
+        self.indoor_dew_point = None
+        self.outdoor_temp = None
+        self.outdoor_hum = None
+        self.outdoor_dew_point = None
+
+    @property
+    def data_as_tuple(self):
+        return (
+            self.indoor_temp,
+            self.indoor_hum,
+            self.indoor_dew_point,
+            self.outdoor_temp,
+            self.outdoor_hum,
+            self.outdoor_dew_point)
+
+    @property
+    def delta_dew_point(self):
+        return self.indoor_dew_point - self.outdoor_dew_point
+
         
 class DewPointController(object):
     
@@ -122,10 +165,9 @@ class DewPointController(object):
         self._time_utc = ''
         self._sensor_indoor = sensor_indoor
         self._sensor_outside = sensor_outside
-        self._temp = Measurement()
-        self._hum = Measurement()
-        self._dew_point = Measurement()
+        self._measurement = Measurement()
         self._fan = False
+        self._counter = 0
 
     def measure(self, time_utc):
         # acquire the semaphore lock
@@ -133,24 +175,26 @@ class DewPointController(object):
         
         self._time_utc = time_utc
         self._sensor_indoor.measure()
-        self._temp.indoor = self._sensor_indoor.temperature()
-        self._hum.indoor = self._sensor_indoor.humidity()
-        self._dew_point.indoor = taupunkt(self._temp.indoor, self._hum.indoor)
+        self._measurement.indoor_temp = self._sensor_indoor.temperature()
+        self._measurement.indoor_hum = self._sensor_indoor.humidity()
+        self._measurement.indoor_dew_point = taupunkt(self._measurement.indoor_temp, self._measurement.indoor_hum)
         
         self._sensor_outside.measure()
-        self._temp.outside = self._sensor_outside.temperature()
-        self._hum.outside = self._sensor_outside.humidity()
-        self._dew_point.outside = taupunkt(self._temp.outside, self._hum.outside)
+        self._measurement.outdoor_temp = self._sensor_outside.temperature()
+        self._measurement.outdoor_hum = self._sensor_outside.humidity()
+        self._measurement.outdoor_dew_point = taupunkt(self._measurement.outdoor_temp, self._measurement.outdoor_hum)
         
-        DeltaTP = self._dew_point.indoor - self._dew_point.outside
-        if DeltaTP > (SCHALTmin + HYSTERESE):
+        DeltaDP = self._measurement.delta_dew_point
+        if DeltaDP > (SWITCHmin + HYSTERESIS):
             self._fan = True
-        if DeltaTP < SCHALTmin:
+        if DeltaDP < SWITCHmin:
             self._fan = False
-        if self._dew_point.indoor < TEMP_indoor_min:
+        if self._measurement.indoor_temp < TEMP_indoor_min:
             self._fan = False
-        if self._dew_point.outside < TEMP_oudside_min:
+        if self._measurement.outdoor_temp < TEMP_outdoor_min:
             self._fan = False
+
+        self._counter += 1
 
         # release the semaphore lock
         self._lock.release()
@@ -166,13 +210,45 @@ class DewPointController(object):
         else:
             return ' '
 
-    def __str__(self):
+    @property
+    def counter(self):
+        return self._counter
+
+
+    def get_metrics(self):
         # acquire the semaphore lock
         self._lock.acquire()
-        ans = f'{self._time_utc}\nin:  {self._temp.indoor}\337C, {self._hum.indoor}% {self.fan_symbol}\nout: {self._temp.outside}\337C, {self._hum.outside}%\nTi: {self._dew_point.indoor:.01f}\337C To: {self._dew_point.outside:.01f}\337C'
+        ans = METRICS % (
+            self._measurement.indoor_temp,
+            self._measurement.indoor_hum,
+            self._measurement.indoor_dew_point,
+            self._measurement.outdoor_temp,
+            self._measurement.outdoor_hum,
+            self._measurement.outdoor_dew_point,
+            self.counter,
+            self.fan)
         # release the semaphore lock
         self._lock.release()
         return ans
+
+    def get_lcd_string(self):
+        # acquire the semaphore lock
+        self._lock.acquire()
+        d = self._measurement.data_as_tuple
+        ans = f'{self._time_utc}\nin:  {d[0]}\337C, {d[1]}% {self.fan_symbol}\nout: {d[3]}\337C, {d[4]}%\nTi: {d[2]:.01f}\337C To: {d[5]:.01f}\337C'
+        # release the semaphore lock
+        self._lock.release()
+        return ans
+
+    def get_measure_html(self):
+        # acquire the semaphore lock
+        self._lock.acquire()
+        d = self._measurement.data_as_tuple
+        ans = f'{self._time_utc}\nin:  {d[0]}&#176;C, {d[1]}% {self.fan_symbol}\nout: {d[3]}&#176;C, {d[4]}%\nTi: {d[2]:.01f}&#176;C To: {d[5]:.01f}&#176;C'
+        # release the semaphore lock
+        self._lock.release()
+        return ans
+
 
 def connect_to_network(wlan):
     global secrets
@@ -220,6 +296,7 @@ async def serve_client(reader, writer):
     led_on = request.find('/light/on')
     led_off = request.find('/light/off')
     measure = request.find('/measure')
+    metrics = request.find('/metrics')
     print( 'led on = ' + str(led_on))
     print( 'led off = ' + str(led_off))
     print( 'measure = ' + str(measure))
@@ -237,9 +314,14 @@ async def serve_client(reader, writer):
 
     if measure == 6:
         print('measure')
-        stateis = f'<pre>{str(dew_point_controller)}</pre>'
+        stateis = f'<pre>{dew_point_controller.get_measure_html()}</pre>'
 
-    response = html % stateis
+    response = HTML % stateis
+
+    if metrics == 6:
+        print('metrics')
+        response = dew_point_controller.get_metrics()
+
     writer.write('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
     writer.write(response)
 
@@ -259,7 +341,7 @@ def messung(timer):
     print(f'measurement at {utc_time_str}')
     dew_point_controller.measure(utc_time_str)
     fan_relais.value(dew_point_controller.fan)
-    for idx, line in enumerate(str(dew_point_controller).splitlines()):
+    for idx, line in enumerate(dew_point_controller.get_lcd_string().splitlines()):
         lcd.write_line(line, idx)
 
 
@@ -288,5 +370,3 @@ try:
     asyncio.run(main())
 finally:
     asyncio.new_event_loop()
-
-
