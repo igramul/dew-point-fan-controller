@@ -18,7 +18,7 @@ from pcf8574 import PCF8574
 from hd44780 import HD44780
 from lcd import LCD
 
-VERSION = '0.1.3'
+VERSION = '0.1.4'
 
 SWITCHmin = 5.0 #  minimum dew point difference at which the fan switches
 HYSTERESIS = 1.0 #  distance from switch-on and switch-off point
@@ -55,15 +55,15 @@ indoor_temp %f
 # HELP indoor_hum Indoor humidity in percent.
 # TYPE indoor_hum gauge
 indoor_hum %f
+# HELP indoor_dew_point Indoor dew point in degree Celsius.
+# TYPE indoor_dew_point gauge
+indoor_dew_point %f
 # HELP outdoor_temp Indoor temperature in degree Celsius.
 # TYPE outdoor_temp gauge
 outdoor_temp %f
 # HELP outdoor_hum Indoor humidity in percent.
 # TYPE outdoor_hum gauge
 outdoor_hum %f
-# HELP indoor_dew_point Indoor dew point in degree Celsius.
-# TYPE indoor_dew_point gauge
-indoor_dew_point %f
 # HELP outdoor_dew_point Indoor dew point in degree Celsius.
 # TYPE outdoor_dew_point gauge
 outdoor_dew_point %f
@@ -338,7 +338,6 @@ def messung(timer):
     global dew_point_controller
     global lcd
     utc_time_str = get_time_string(time.localtime())
-    print(f'measurement at {utc_time_str}')
     dew_point_controller.measure(utc_time_str)
     fan_relais.value(dew_point_controller.fan)
     for idx, line in enumerate(dew_point_controller.get_lcd_string().splitlines()):
@@ -351,9 +350,13 @@ async def main():
     wlan = network.WLAN(network.STA_IF)
     connect_to_network(wlan)
 
+    print('Initial dew point measurement...')
+    messung(None)
+
     print('Setting up Webserver...')
     asyncio.create_task(asyncio.start_server(serve_client, '0.0.0.0', 80))
 
+    print('Running Dew Point Fan Controller.')
     timer_messung.init(period=5000, mode=machine.Timer.PERIODIC, callback=messung)
 
     wdt = machine.WDT(timeout=8388)  # enable watchdog with a timeout of 8.3s
