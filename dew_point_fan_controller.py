@@ -18,7 +18,7 @@ from pcf8574 import PCF8574
 from hd44780 import HD44780
 from lcd import LCD
 
-VERSION = '0.1.4'
+VERSION = '0.1.5'
 
 SWITCHmin = 5.0 #  minimum dew point difference at which the fan switches
 HYSTERESIS = 1.0 #  distance from switch-on and switch-off point
@@ -93,9 +93,9 @@ touch_lcd_on = machine.Pin(28, machine.Pin.IN, machine.Pin.PULL_DOWN)
 timer_lcd_light = machine.Timer()
 def iluminate_lcd_background():
     global lcd
-    print('LCD backlight on for 10s.')
+    print('LCD backlight on for 60s.')
     lcd.backlight_on()
-    timer_lcd_light.init(mode=machine.Timer.ONE_SHOT, period=10000, callback=lambda t: lcd.backlight_off())
+    timer_lcd_light.init(mode=machine.Timer.ONE_SHOT, period=60000, callback=lambda t: lcd.backlight_off())
 
 touch_lcd_on.irq(lambda irq:iluminate_lcd_background(), machine.Pin.IRQ_RISING)
 
@@ -170,6 +170,8 @@ class DewPointController(object):
         self._counter = 0
 
     def measure(self, time_utc):
+        start = time.ticks_us()
+
         # acquire the semaphore lock
         self._lock.acquire()
         
@@ -198,6 +200,7 @@ class DewPointController(object):
 
         # release the semaphore lock
         self._lock.release()
+        print('Measure: {}, Duration: {} us'.format(time_utc, time.ticks_diff(time.ticks_us(), start)))
 
     @property
     def fan(self):
@@ -210,11 +213,6 @@ class DewPointController(object):
         else:
             return ' '
 
-    @property
-    def counter(self):
-        return self._counter
-
-
     def get_metrics(self):
         # acquire the semaphore lock
         self._lock.acquire()
@@ -225,8 +223,8 @@ class DewPointController(object):
             self._measurement.outdoor_temp,
             self._measurement.outdoor_hum,
             self._measurement.outdoor_dew_point,
-            self.counter,
-            self.fan)
+            self._counter,
+            self._fan)
         # release the semaphore lock
         self._lock.release()
         return ans
@@ -235,7 +233,7 @@ class DewPointController(object):
         # acquire the semaphore lock
         self._lock.acquire()
         d = self._measurement.data_as_tuple
-        ans = f'{self._time_utc}\nin:  {d[0]}\337C, {d[1]}% {self.fan_symbol}\nout: {d[3]}\337C, {d[4]}%\nTi: {d[2]:.01f}\337C To: {d[5]:.01f}\337C'
+        ans = f'in:  {d[0]}\337C, {d[1]}% {self.fan_symbol}\nout: {d[3]}\337C, {d[4]}%\nTi: {d[2]:.01f}\337C To: {d[5]:.01f}\337C'
         # release the semaphore lock
         self._lock.release()
         return ans
@@ -284,8 +282,7 @@ def get_time_string(t):
 
 
 async def serve_client(reader, writer):
-    
-    print('Client connected')
+    # Client connected
     request_line = await reader.readline()
     print('Request:', request_line)
     # not interested in HTTP request headers, skip them
@@ -293,55 +290,40 @@ async def serve_client(reader, writer):
         pass
 
     request = str(request_line)
-    led_on = request.find('/light/on')
-    led_off = request.find('/light/off')
-    measure = request.find('/measure')
     metrics = request.find('/metrics')
-    print( 'led on = ' + str(led_on))
-    print( 'led off = ' + str(led_off))
-    print( 'measure = ' + str(measure))
-
-    stateis = ''
-    if led_on == 6:
-        print('led on')
-        led_status.value(1)
-        stateis = 'LED is ON'
-
-    if led_off == 6:
-        print('led off')
-        led_status.value(0)
-        stateis = 'LED is OFF'
-
-    if measure == 6:
-        print('measure')
-        stateis = f'<pre>{dew_point_controller.get_measure_html()}</pre>'
-
-    response = HTML % stateis
 
     if metrics == 6:
-        print('metrics')
         response = dew_point_controller.get_metrics()
+    else:
+        response = HTML % f'<pre>{dew_point_controller.get_measure_html()}</pre>'
 
     writer.write('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
     writer.write(response)
 
     await writer.drain()
     await writer.wait_closed()
-    print('Client disconnected')
+    # Client disconnected
 
 
 dew_point_controller = DewPointController(sensor_indoor, sensor_outside)
 
 timer_messung = machine.Timer()
  
-def messung(timer):
+def tick(timer):
+    t = time.localtime()
+    time_utc =  get_time_string(t)
+    lcd.write_line(time_utc, 0)
+    if t[5] % 5 == 0:
+        messung(time_utc)
+
+
+def messung(time_utc):
     global dew_point_controller
     global lcd
-    utc_time_str = get_time_string(time.localtime())
-    dew_point_controller.measure(utc_time_str)
+    dew_point_controller.measure(time_utc)
     fan_relais.value(dew_point_controller.fan)
     for idx, line in enumerate(dew_point_controller.get_lcd_string().splitlines()):
-        lcd.write_line(line, idx)
+        lcd.write_line(line, idx+1)
 
 
 async def main():
@@ -351,13 +333,13 @@ async def main():
     connect_to_network(wlan)
 
     print('Initial dew point measurement...')
-    messung(None)
+    messung(get_time_string(time.localtime()))
 
     print('Setting up Webserver...')
     asyncio.create_task(asyncio.start_server(serve_client, '0.0.0.0', 80))
 
     print('Running Dew Point Fan Controller.')
-    timer_messung.init(period=5000, mode=machine.Timer.PERIODIC, callback=messung)
+    timer_messung.init(period=1000, mode=machine.Timer.PERIODIC, callback=tick)
 
     wdt = machine.WDT(timeout=8388)  # enable watchdog with a timeout of 8.3s
 
