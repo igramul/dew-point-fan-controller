@@ -18,7 +18,7 @@ from pcf8574 import PCF8574
 from hd44780 import HD44780
 from lcd import LCD
 
-VERSION = '0.1.6'
+VERSION = '0.1.7'
 
 SWITCHmin = 5.0 #  minimum dew point difference at which the fan switches
 HYSTERESIS = 1.0 #  distance from switch-on and switch-off point
@@ -242,7 +242,7 @@ class DewPointController(object):
         # acquire the semaphore lock
         self._lock.acquire()
         d = self._measurement.data_as_tuple
-        ans = f'{self._time_utc}\nin:  {d[0]}&#176;C, {d[1]}% {self.fan_symbol}\nout: {d[3]}&#176;C, {d[4]}%\nTi: {d[2]:.01f}&#176;C To: {d[5]:.01f}&#176;C'
+        ans = f'{self._time_utc}\nin:  {d[0]}&#176;C, {d[1]}% {self.fan_symbol}\nout: {d[3]}&#176;C, {d[4]}%\nTi: {d[2]:.01f}&#176;C To: {d[5]:.01f}&#176;C\nFan State: {self.fan}'
         # release the semaphore lock
         self._lock.release()
         return ans
