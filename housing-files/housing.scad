@@ -22,6 +22,8 @@ cover_height = 20;
 cover_height_brim = 5;
 cover_tolerance = tolerance;
 
+div_wall = 40;
+
 panel_font = "FrutigerNextLT:style=Bold";
 
 // define AC built-in plug with fuse holder
@@ -80,21 +82,37 @@ module housing_base() {
             translate([0, rocker_y_pos, rocker_z_pos])
                 rotate([0, -90, 0]) rocker_hole(rocker_main, 10);
             
-            // remove side wall for ventilation slot
+            // remove side wall for ventilation slots
             translate([length, width/2, height/2])
                 cube([10, width*0.8, height*0.6], center=true);
+
+            // remove top and bottom part for ventilation slots
+            s_w = (40 - radius) * 0.9;
+            translate([length-radius-s_w/2, 0, height/2])
+                cube([s_w, 10, height*0.6], center=true);
+            translate([length-radius-s_w/2, width, height/2])
+                cube([s_w, 10, height*0.6], center=true);
         }
         
         // socket mount für USB 5V power supply
         translate([80, width-wall, 0]) rotate([90, 0, -90]) SocketMount();
         
         // mounting holes for fan relay board
-        translate([length/2+40, width/2-20, wall])
+        translate([length/2+30, width/2-20, wall])
             rotate([0, 0, 0]) pcb_base(HW803_1WAY_RELAY, 10, 0);
         
-        translate([length+3, width/2, height/2]) rotate([0, 0, 45]) 
-            cube([2, 15, height*0.8], center=true);
-        
+        // side wall ventilation slots
+        for (i = [54:-10:-56]) {
+            translate([length-6.1, width/2+i, height/2-6]) rotate([0, 0, 45])
+                cube([1, 15, height*0.8], center=true);
+        }
+        // top and bottom ventilation slots
+        for (i = [13.5:4:34]) {
+            translate([length-i, width/2+72.5, height/2-6]) rotate([0, 0, 0])
+                cube([1, 5, height*0.8], center=true);
+            translate([length-i, width/2-72.5, height/2-6]) rotate([0, 0, 0])
+                cube([1, 5, height*0.8], center=true);
+        }
     }
 }
 
@@ -111,7 +129,7 @@ module housing() {
     translate([0, rocker_y_pos, rocker_z_pos])
         rotate([0, -90, 0]) rocker(rocker_main, "red");
     
-    translate([length/2+40, width/2-20, wall+10])
+    translate([length/2+30, width/2-20, wall+10])
         rotate([0, 0, 0]) pcb(HW803_1WAY_RELAY);
 
     
@@ -194,7 +212,7 @@ module housing_cover_base() {
         }
         
         // dividing wall
-        translate([length-40, wall+cover_tolerance, (wall+cover_tolerance) - height]) 
+        translate([length-div_wall, wall+cover_tolerance, (wall+cover_tolerance) - height])
             cube([wall, width - 2*(wall+cover_tolerance), height + cover_height_brim - (wall+cover_tolerance)]);
         
     }
@@ -202,7 +220,10 @@ module housing_cover_base() {
 
 module housing_cover() {
     housing_cover_base();
-    translate([length / 2, width / 2, cover_height_brim]) rotate([180, 0, 0]) display(LCD2004A);
+
+    // LCD display
+    translate([length / 2, width / 2, cover_height_brim])
+        rotate([180, 0, 0]) display(LCD2004A);
 
     //reset button
     translate([length / 2 + 45, width / 2 + 40, cover_height_brim - wall])
@@ -228,6 +249,7 @@ module housing_cover() {
     translate([length / 2, width / 2 - 28, cover_height_brim - wall + 2.5/2])
         rotate([0, 180, -90]) pcb(TTP223);
         
+    // electronic Mainboard
     translate([length / 2 - 72, width / 2, cover_height_brim - wall - 6])
         rotate([180, 0, 90]) pcb(PERF60x40);    
 }
@@ -235,14 +257,14 @@ module housing_cover() {
 
 
 if($preview) {
-    difference() {
+    //difference(){
         union() {
-    //housing();
     translate([0, 0, height]) housing_cover();
+    housing();
         }
-        //translate([length-20, 0, 0]) cube([height, height, height]);
-    }
+     //   translate([-10, -60, -10]) cube([length+20, width/2, height+50]);
+    //^}
 } else {
+    //translate([0, 0, height]) housing_cover_base();
     housing_base();
-    //housing_cover_base();
 }
