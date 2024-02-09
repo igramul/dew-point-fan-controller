@@ -10,7 +10,7 @@ include <NopSCADlib/vitamins/toggles.scad>
 
 include <socket_mount.scad>
 
-length = 220;
+length = 210;
 width = 150;
 height = 80;
 wall = 2.5;
@@ -18,11 +18,11 @@ radius = 10;
 
 tolerance = 0.5;
 
-cover_height = 20;
+cover_height = 18;
 cover_height_brim = 5;
 cover_tolerance = tolerance;
 
-div_wall = 40;
+div_wall = 43;
 
 panel_font = "FrutigerNextLT:style=Bold";
 
@@ -98,8 +98,8 @@ module housing_base() {
         translate([80, width-wall, 0]) rotate([90, 0, -90]) SocketMount();
         
         // mounting holes for fan relay board
-        translate([length/2+30, width/2-20, wall])
-            rotate([0, 0, 0]) pcb_base(HW803_1WAY_RELAY, 10, 0);
+        translate([length/2+40, width/2-10, wall])
+            rotate([0, 0, 90]) pcb_base(HW803_1WAY_RELAY, 10, 0);
         
         // side wall ventilation slots
         for (i = [54:-10:-56]) {
@@ -113,6 +113,19 @@ module housing_base() {
             translate([length-i, width/2-72.5, height/2-6]) rotate([0, 0, 0])
                 cube([1, 5, height*0.8], center=true);
         }
+        // dividing wall slot
+        translate([length - div_wall + wall + tolerance, 0, 0])
+            cube([wall/2, width, 3*wall]);
+        translate([length - div_wall - wall/2 - tolerance, 0, 0])
+            cube([wall/2, width, 3*wall]);
+        translate([length - div_wall + wall + tolerance, 0, 0])
+            cube([wall/2, 3*wall, height - cover_height + cover_height_brim - tolerance]);
+        translate([length - div_wall + wall + tolerance, width - 3*wall, 0])
+            cube([wall/2, 3*wall, height - cover_height + cover_height_brim - tolerance]);
+        translate([length - div_wall - wall/2 - tolerance, 0, 0])
+            cube([wall/2, 3*wall, height - cover_height + cover_height_brim - tolerance]);
+        translate([length - div_wall - wall/2 - tolerance, width - 3*wall, 0])
+            cube([wall/2, 3*wall, height - cover_height + cover_height_brim - tolerance]);
     }
 }
 
@@ -129,8 +142,8 @@ module housing() {
     translate([0, rocker_y_pos, rocker_z_pos])
         rotate([0, -90, 0]) rocker(rocker_main, "red");
     
-    translate([length/2+30, width/2-20, wall+10])
-        rotate([0, 0, 0]) pcb(HW803_1WAY_RELAY);
+    translate([length/2+40, width/2-10, wall+10])
+        rotate([0, 0, 90]) pcb(HW803_1WAY_RELAY);
 
     
 }
@@ -180,20 +193,25 @@ module housing_cover_base() {
             translate([length / 2, width / 2 -26, cover_height_brim])
                 TouchButtomSymbol(r=5, h=0.8);
 
+            // Panel text
+            translate([length / 2, width - 25, cover_height_brim - 0.4])
+                cube([100, 0.4, 1], center=true);
+            translate([length / 2, width - 20, cover_height_brim - 0.4])
+                linear_extrude(0.5) text("Dew Point Fan Controller", size=6, halign = "center", font = panel_font);
             translate([length / 2 - 0.61, width / 2 - 42.5, cover_height_brim - 0.4])
-                linear_extrude(0.5) text("ON —", size=6, halign = "right", font = panel_font);
+                linear_extrude(0.5) text("On —", size=6, halign = "right", font = panel_font);
             translate([length / 2 - 0.61, width / 2 - 52.5, cover_height_brim - 0.4])
-                linear_extrude(0.5) text("— AUTO —", size=6, halign = "right", font = panel_font);
+                linear_extrude(0.5) text("— Auto —", size=6, halign = "right", font = panel_font);
             translate([length / 2 - 0.61, width / 2 - 62.5, cover_height_brim - 0.4])
-                linear_extrude(0.5) text("OFF —", size=6, halign = "right", font = panel_font);
+                linear_extrude(0.5) text("Off —", size=6, halign = "right", font = panel_font);
                 
             translate([length / 2 + 3.3, width / 2 - 52.5, cover_height_brim - 0.4])
-                linear_extrude(0.5) text("— FAN —", size=6, font = panel_font);
+                linear_extrude(0.5) text("— Fan —", size=6, font = panel_font);
 
             translate([length / 2 - 40, width / 2 + 37.5, cover_height_brim - 0.4])
-                linear_extrude(0.5) text("— WLAN", size=6, font = panel_font);
+                linear_extrude(0.5) text("— Online", size=6, font = panel_font);
             translate([length / 2 + 40, width / 2 + 37.5, cover_height_brim - 0.4])
-                linear_extrude(0.5) text("RESET —", size=6, halign = "right", font = panel_font);
+                linear_extrude(0.5) text("Reset —", size=6, halign = "right", font = panel_font);
 
         }
         
@@ -210,11 +228,15 @@ module housing_cover_base() {
             translate([length / 2, width / 2 - 28, cover_height_brim - wall])
                 cube([11.5, 16, 2.5], center=true);
         }
-        
+
+        // electronic Mainboard mount
+        translate([length / 2 - 72, width / 2, cover_height_brim - wall])
+            rotate([180, 0, 90]) pcb_base(PERF60x40, 6, 0);
+
         // dividing wall
         translate([length-div_wall, wall+cover_tolerance, (wall+cover_tolerance) - height])
             cube([wall, width - 2*(wall+cover_tolerance), height + cover_height_brim - (wall+cover_tolerance)]);
-        
+
     }
 }
 
@@ -248,23 +270,18 @@ module housing_cover() {
     // Touch Button PCB
     translate([length / 2, width / 2 - 28, cover_height_brim - wall + 2.5/2])
         rotate([0, 180, -90]) pcb(TTP223);
-        
+
     // electronic Mainboard
     translate([length / 2 - 72, width / 2, cover_height_brim - wall - 6])
-        rotate([180, 0, 90]) pcb(PERF60x40);    
+        rotate([180, 0, 90]) pcb(PERF60x40);
 }
 
 
 
 if($preview) {
-    //difference(){
-        union() {
     translate([0, 0, height]) housing_cover();
     housing();
-        }
-     //   translate([-10, -60, -10]) cube([length+20, width/2, height+50]);
-    //^}
 } else {
-    //translate([0, 0, height]) housing_cover_base();
+    translate([0, 0, height]) housing_cover_base();
     housing_base();
 }
