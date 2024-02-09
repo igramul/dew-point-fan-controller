@@ -62,6 +62,17 @@ module TouchButtomSymbol(r, h,) {
     cylinder(r=r/5,     h=h, center=true);
 }
 
+module PlasticScrew(){
+    cylinder(h=11, d=1.5);
+    cylinder(h=3, d1=5.2, d2=1.5); // Kopf
+}
+
+module PlasticScrewsAll(){
+    translate([0, width - 20,  - 8]) rotate([0,  90, 0]) PlasticScrew();
+    translate([0, 20,  - 8]) rotate([0,  90, 0]) PlasticScrew();
+    translate([length, width - 20,  - 8]) rotate([0,  -90, 0]) PlasticScrew();
+    translate([length, 20,  - 8]) rotate([0,  -90, 0]) PlasticScrew();
+}
 
 module housing_base() {
     color("LightGrey") {
@@ -92,6 +103,8 @@ module housing_base() {
                 cube([s_w, 10, height*0.6], center=true);
             translate([length-radius-s_w/2, width, height/2])
                 cube([s_w, 10, height*0.6], center=true);
+
+            translate([0, 0, height]) PlasticScrewsAll();
         }
         
         // socket mount für USB 5V power supply
@@ -160,8 +173,10 @@ module housing_cover_base() {
             }
             translate([0, 0, cover_height_brim - cover_height - 1]) 
                 linear_extrude(height = cover_height - wall + 1) 
-                    offset(-10) housing_GroudPlate();
-            
+                    offset(-12) housing_GroudPlate();
+
+            PlasticScrewsAll();
+
             // LCD hole
             translate([length / 2, width / 2, cover_height_brim]) rotate([180, 0, 0]) 
                 display_aperture(LCD2004A, clearance = tolerance);
@@ -213,8 +228,7 @@ module housing_cover_base() {
             translate([length / 2 + 40, width / 2 + 37.5, cover_height_brim - 0.4])
                 linear_extrude(0.5) text("Reset —", size=6, halign = "right", font = panel_font);
 
-        }
-        
+        }        
 
         // LCD PBC mount
         translate([length / 2, width / 2, cover_height_brim - 2]) rotate([180, 0, 0]) 
