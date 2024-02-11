@@ -70,6 +70,9 @@ outdoor_dew_point %f
 # HELP measurement_counter Counter for the measurements taken since startup.
 # TYPE measurement_counter counter
 measurement_counter %i
+# HELP fan_control Fan Control (1: on, 0: off)
+# TYPE fan_contoll gauge
+fan_control %i
 # HELP fan_state Fan state (1: on, 0: off)
 # TYPE fan_state gauge
 fan_state %i"""
@@ -82,6 +85,7 @@ sensor_indoor = dht.DHT22(machine.Pin(14))
 sensor_outdoor = dht.DHT22(machine.Pin(16))
 
 fan_relais = machine.Pin(15, machine.Pin.OUT)
+fan_status = machine.Pin(13, machine.Pin.IN)
 
 i2c = machine.I2C(0, sda=machine.Pin(0), scl=machine.Pin(1), freq=400000)
 pcf8574 = PCF8574(i2c)
@@ -224,7 +228,8 @@ class DewPointController(object):
             self._measurement.outdoor_hum,
             self._measurement.outdoor_dew_point,
             self._counter,
-            self._fan)
+            self._fan,
+            fan_status.value())
         # release the semaphore lock
         self._lock.release()
         return ans
@@ -233,7 +238,11 @@ class DewPointController(object):
         # acquire the semaphore lock
         self._lock.acquire()
         d = self._measurement.data_as_tuple
-        ans = f'in:  {d[0]}\337C, {d[1]}% {self.fan_symbol}\nout: {d[3]}\337C, {d[4]}%\nTi: {d[2]:.01f}\337C To: {d[5]:.01f}\337C'
+        if fan_status.value():
+            fan_control = "!"
+        else:
+            fan_control = ""
+        ans = f'in:  {d[0]}\337C, {d[1]}% {self.fan_symbol}\nout: {d[3]}\337C, {d[4]}% {fan_control}\nTi: {d[2]:.01f}\337C To: {d[5]:.01f}\337C'
         # release the semaphore lock
         self._lock.release()
         return ans
@@ -242,7 +251,11 @@ class DewPointController(object):
         # acquire the semaphore lock
         self._lock.acquire()
         d = self._measurement.data_as_tuple
-        ans = f'{self._time_utc}\nin:  {d[0]}&#176;C, {d[1]}% {self.fan_symbol}\nout: {d[3]}&#176;C, {d[4]}%\nTi: {d[2]:.01f}&#176;C To: {d[5]:.01f}&#176;C\nFan State: {self.fan}'
+        if fan_status.value():
+            fan_control = "!"
+        else:
+            fan_control = ""
+        ans = f'{self._time_utc}\nin:  {d[0]}&#176;C, {d[1]}% {self.fan_symbol}\nout: {d[3]}&#176;C, {d[4]}% {fan_control}\nTi: {d[2]:.01f}&#176;C To: {d[5]:.01f}&#176;C\nFan State: {self.fan}'
         # release the semaphore lock
         self._lock.release()
         return ans
