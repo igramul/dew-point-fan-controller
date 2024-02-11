@@ -18,7 +18,7 @@ from pcf8574 import PCF8574
 from hd44780 import HD44780
 from lcd import LCD
 
-VERSION = '0.1.7'
+VERSION = '0.1.8-rc1'
 
 SWITCHmin = 5.0 #  minimum dew point difference at which the fan switches
 HYSTERESIS = 1.0 #  distance from switch-on and switch-off point
@@ -79,7 +79,7 @@ led_fan_status = machine.Pin(18, machine.Pin.OUT, value=0)
 led_onboard = machine.Pin("LED", machine.Pin.OUT, value=0)
 
 sensor_indoor = dht.DHT22(machine.Pin(14))
-sensor_outside = dht.DHT22(machine.Pin(16))
+sensor_outdoor = dht.DHT22(machine.Pin(16))
 
 fan_relais = machine.Pin(15, machine.Pin.OUT)
 
@@ -159,12 +159,12 @@ class Measurement(object):
         
 class DewPointController(object):
     
-    def __init__(self, sensor_indoor, sensor_outside):
+    def __init__(self, sensor_indoor, sensor_outdoor):
         # create a semaphore (A.K.A lock)
         self._lock = _thread.allocate_lock()
         self._time_utc = ''
         self._sensor_indoor = sensor_indoor
-        self._sensor_outside = sensor_outside
+        self._sensor_outdoor = sensor_outdoor
         self._measurement = Measurement()
         self._fan = False
         self._counter = 0
@@ -181,9 +181,9 @@ class DewPointController(object):
         self._measurement.indoor_hum = self._sensor_indoor.humidity()
         self._measurement.indoor_dew_point = taupunkt(self._measurement.indoor_temp, self._measurement.indoor_hum)
         
-        self._sensor_outside.measure()
-        self._measurement.outdoor_temp = self._sensor_outside.temperature()
-        self._measurement.outdoor_hum = self._sensor_outside.humidity()
+        self._sensor_outdoor.measure()
+        self._measurement.outdoor_temp = self._sensor_outdoor.temperature()
+        self._measurement.outdoor_hum = self._sensor_outdoor.humidity()
         self._measurement.outdoor_dew_point = taupunkt(self._measurement.outdoor_temp, self._measurement.outdoor_hum)
         
         DeltaDP = self._measurement.delta_dew_point
@@ -305,7 +305,7 @@ async def serve_client(reader, writer):
     # Client disconnected
 
 
-dew_point_controller = DewPointController(sensor_indoor, sensor_outside)
+dew_point_controller = DewPointController(sensor_indoor, sensor_outdoor)
 
 timer_messung = machine.Timer()
  
