@@ -14,11 +14,11 @@ import uasyncio as asyncio
 import _thread
 
 
-from pcf8574 import PCF8574
-from hd44780 import HD44780
-from lcd import LCD
+#from pcf8574 import PCF8574
+#from hd44780 import HD44780
+#from lcd import LCD
 
-VERSION = '0.1.8-rc1'
+VERSION = '0.2.0-rc1'
 
 SWITCHmin = 5.0 #  minimum dew point difference at which the fan switches
 HYSTERESIS = 1.0 #  distance from switch-on and switch-off point
@@ -77,37 +77,37 @@ fan_control %i
 # TYPE fan_state gauge
 fan_state %i"""
 
-led_wlan = machine.Pin(0, machine.Pin.OUT)
-led_fan_status = machine.Pin(16, machine.Pin.OUT, value=0)
+#led_wlan = machine.Pin(0, machine.Pin.OUT)
+#led_fan_status = machine.Pin(16, machine.Pin.OUT, value=0)
 led_onboard = machine.Pin("LED", machine.Pin.OUT, value=0)
 
-sensor_indoor = dht.DHT22(machine.Pin(4))
-sensor_outdoor = dht.DHT22(machine.Pin(5))
+sensor_indoor = dht.DHT22(machine.Pin(3))
+sensor_outdoor = dht.DHT22(machine.Pin(2))
 
-fan_relais = machine.Pin(15, machine.Pin.OUT)
-fan_status = machine.Pin(13, machine.Pin.IN)
+#fan_relais = machine.Pin(15, machine.Pin.OUT)
+#fan_status = machine.Pin(13, machine.Pin.IN)
 
-i2c = machine.I2C(1, sda=machine.Pin(2), scl=machine.Pin(3), freq=400000)
-pcf8574 = PCF8574(i2c)
-hd44780 = HD44780(pcf8574, num_lines=4, num_columns=20)
-lcd = LCD(hd44780, pcf8574)
+#i2c = machine.I2C(1, sda=machine.Pin(2), scl=machine.Pin(3), freq=400000)
+#pcf8574 = PCF8574(i2c)
+#hd44780 = HD44780(pcf8574, num_lines=4, num_columns=20)
+#lcd = LCD(hd44780, pcf8574)
 
-touch_lcd_on = machine.Pin(12, machine.Pin.IN, machine.Pin.PULL_DOWN)
+#touch_lcd_on = machine.Pin(12, machine.Pin.IN, machine.Pin.PULL_DOWN)
 
-timer_lcd_light = machine.Timer()
-def iluminate_lcd_background():
-    global lcd
-    print('LCD backlight on for 60s.')
-    lcd.backlight_on()
-    timer_lcd_light.init(mode=machine.Timer.ONE_SHOT, period=60000, callback=lambda t: lcd.backlight_off())
+#timer_lcd_light = machine.Timer()
+#def iluminate_lcd_background():
+#    global lcd
+#    print('LCD backlight on for 60s.')
+#    lcd.backlight_on()
+#    timer_lcd_light.init(mode=machine.Timer.ONE_SHOT, period=60000, callback=lambda t: lcd.backlight_off())
 
-touch_lcd_on.irq(lambda irq:iluminate_lcd_background(), machine.Pin.IRQ_RISING)
+#touch_lcd_on.irq(lambda irq:iluminate_lcd_background(), machine.Pin.IRQ_RISING)
 
-lcd.write_line('Dew Point Fan Contr.', 0)
-lcd.write_line('--------------------', 1)
-lcd.write_line(f'   Version {VERSION}', 2)
-lcd.write_line('lburger@igramul.ch', 3)
-iluminate_lcd_background()
+#lcd.write_line('Dew Point Fan Contr.', 0)
+#lcd.write_line('--------------------', 1)
+#lcd.write_line(f'   Version {VERSION}', 2)
+#lcd.write_line('lburger@igramul.ch', 3)
+#iluminate_lcd_background()
 
 with open('secrets.json') as fp:
     secrets = ujson.loads(fp.read())
@@ -251,10 +251,10 @@ class DewPointController(object):
         # acquire the semaphore lock
         self._lock.acquire()
         d = self._measurement.data_as_tuple
-        if fan_status.value():
-            fan_control = "!"
-        else:
-            fan_control = ""
+#        if fan_status.value():
+#            fan_control = "!"
+#        else:
+        fan_control = ""
         ans = f'{self._time_utc}\nin:  {d[0]}&#176;C, {d[1]}% {self.fan_symbol}\nout: {d[3]}&#176;C, {d[4]}% {fan_control}\nTi: {d[2]:.01f}&#176;C To: {d[5]:.01f}&#176;C\nFan State: {self.fan}'
         # release the semaphore lock
         self._lock.release()
@@ -264,7 +264,7 @@ class DewPointController(object):
 def connect_to_network(wlan):
     global secrets
     if not wlan.isconnected():
-        led_wlan.off()
+ #       led_wlan.off()
         print('WLAN connecting...')
         wlan.active(True)
         mac = ubinascii.hexlify(network.WLAN().config('mac'),':').decode()
@@ -274,13 +274,13 @@ def connect_to_network(wlan):
         for i in range(10):
             if wlan.status() not in [network.STAT_CONNECTING, STAT_NO_IP]:
                 break
-            led_wlan.toggle()
+#            led_wlan.toggle()
             time.sleep(0.25)
-            led_wlan.toggle()
+#            led_wlan.toggle()
             time.sleep(0.25)
     print('WLAN status:', NetworkStat[wlan.status()])
     if wlan.isconnected():
-        led_wlan.on()
+#        led_wlan.on()
         netConfig = wlan.ifconfig()
         print('  - IPv4 addresse', netConfig[0], '/', netConfig[1])
         print('  - standard gateway:', netConfig[2])
@@ -325,19 +325,19 @@ timer_messung = machine.Timer()
 def tick(timer):
     t = time.localtime()
     time_utc =  get_time_string(t)
-    lcd.write_line(time_utc, 0)
+#    lcd.write_line(time_utc, 0)
     if t[5] % 5 == 0:
         messung(time_utc)
 
 
 def messung(time_utc):
     global dew_point_controller
-    global lcd
+#    global lcd
     dew_point_controller.measure(time_utc)
-    fan_relais.value(dew_point_controller.fan)
-    led_fan_status.value(dew_point_controller.fan)
-    for idx, line in enumerate(dew_point_controller.get_lcd_string().splitlines()):
-        lcd.write_line(line, idx+1)
+#    fan_relais.value(dew_point_controller.fan)
+#    led_fan_status.value(dew_point_controller.fan)
+#    for idx, line in enumerate(dew_point_controller.get_lcd_string().splitlines()):
+#        lcd.write_line(line, idx+1)
 
 
 async def main():
