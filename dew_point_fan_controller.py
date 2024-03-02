@@ -229,7 +229,7 @@ class DewPointController(object):
             self._measurement.outdoor_dew_point,
             self._counter,
             self._fan,
-            fan_status.value())
+            0)
         # release the semaphore lock
         self._lock.release()
         return ans
