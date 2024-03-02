@@ -348,7 +348,6 @@ def messung(time_utc):
     dew_point_controller.measure(time_utc)
 #    fan_relais.value(dew_point_controller.fan)
 #    led_fan_status.value(dew_point_controller.fan)
-    print(np[0])
     if dew_point_controller.fan:
         np[7] = (0, 255, 0)
     else:
