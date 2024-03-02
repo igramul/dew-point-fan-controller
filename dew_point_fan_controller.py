@@ -12,6 +12,7 @@ import ntptime
 import ujson
 import uasyncio as asyncio
 import _thread
+import neopixel
 
 
 #from pcf8574 import PCF8574
@@ -76,6 +77,9 @@ fan_control %i
 # HELP fan_state Fan state (1: on, 0: off)
 # TYPE fan_state gauge
 fan_state %i"""
+
+
+np = neopixel.NeoPixel(machine.Pin(16), 8)
 
 #led_wlan = machine.Pin(0, machine.Pin.OUT)
 #led_fan_status = machine.Pin(16, machine.Pin.OUT, value=0)
@@ -265,6 +269,8 @@ def connect_to_network(wlan):
     global secrets
     if not wlan.isconnected():
  #       led_wlan.off()
+        np[0] = (0, 0, 255)
+        np.write()
         print('WLAN connecting...')
         wlan.active(True)
         mac = ubinascii.hexlify(network.WLAN().config('mac'),':').decode()
@@ -275,12 +281,18 @@ def connect_to_network(wlan):
             if wlan.status() not in [network.STAT_CONNECTING, STAT_NO_IP]:
                 break
 #            led_wlan.toggle()
+            np[0] = (0, 0, 0)
+            np.write()
             time.sleep(0.25)
 #            led_wlan.toggle()
+            np[0] = (0, 0, 255)
+            np.write()
             time.sleep(0.25)
     print('WLAN status:', NetworkStat[wlan.status()])
     if wlan.isconnected():
 #        led_wlan.on()
+        np[0] = (0, 0, 255)
+        np.write()
         netConfig = wlan.ifconfig()
         print('  - IPv4 addresse', netConfig[0], '/', netConfig[1])
         print('  - standard gateway:', netConfig[2])
