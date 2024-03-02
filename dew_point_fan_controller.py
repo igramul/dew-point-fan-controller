@@ -348,6 +348,12 @@ def messung(time_utc):
     dew_point_controller.measure(time_utc)
 #    fan_relais.value(dew_point_controller.fan)
 #    led_fan_status.value(dew_point_controller.fan)
+    print(np[0])
+    if dew_point_controller.fan:
+        np[7] = (0, 255, 0)
+    else:
+        np[7] = (0, 0, 0)
+    np.write()
 #    for idx, line in enumerate(dew_point_controller.get_lcd_string().splitlines()):
 #        lcd.write_line(line, idx+1)
 
