@@ -18,7 +18,7 @@ from pcf8574 import PCF8574
 from hd44780 import HD44780
 from lcd import LCD
 
-VERSION = '0.1.8-rc1'
+VERSION = '0.1.8-rc2'
 
 SWITCHmin = 5.0 #  minimum dew point difference at which the fan switches
 HYSTERESIS = 1.0 #  distance from switch-on and switch-off point
@@ -78,11 +78,11 @@ fan_control %i
 fan_state %i"""
 
 led_wlan = machine.Pin(0, machine.Pin.OUT)
-led_fan_status = machine.Pin(16, machine.Pin.OUT, value=0)
+led_fan_status = machine.Pin(18, machine.Pin.OUT, value=0)
 led_onboard = machine.Pin("LED", machine.Pin.OUT, value=0)
 
-sensor_indoor = dht.DHT22(machine.Pin(4))
-sensor_outdoor = dht.DHT22(machine.Pin(5))
+sensor_indoor = dht.DHT22(machine.Pin(6))
+sensor_outdoor = dht.DHT22(machine.Pin(7))
 
 fan_relais = machine.Pin(15, machine.Pin.OUT)
 fan_status = machine.Pin(13, machine.Pin.IN)
