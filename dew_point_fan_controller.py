@@ -18,7 +18,7 @@ from pcf8574 import PCF8574
 from hd44780 import HD44780
 from lcd import LCD
 
-VERSION = '0.1.8-rc2'
+VERSION = '0.2.0-rc1'
 
 SWITCHmin = 5.0 #  minimum dew point difference at which the fan switches
 HYSTERESIS = 1.0 #  distance from switch-on and switch-off point
@@ -287,7 +287,7 @@ def connect_to_network(wlan):
         print('  - DNS server:', netConfig[3])
         ntptime.settime()
     else:
-        raise(RuntimeError('ERROR: no network connection.'))
+        raise RuntimeError('No WLAN connection')
 
 
 def get_time_string(t):
@@ -341,11 +341,6 @@ def messung(time_utc):
 
 
 async def main():
-    print('Connecting to Network...')
-    rp2.country('CH')
-    wlan = network.WLAN(network.STA_IF)
-    connect_to_network(wlan)
-
     print('Initial dew point measurement...')
     messung(get_time_string(time.localtime()))
 
@@ -365,7 +360,14 @@ async def main():
         await asyncio.sleep(2)
 
 
+print('Connecting to Network...')
+rp2.country('CH')
+wlan = network.WLAN(network.STA_IF)
+lcd.write_line('Connection to Network', 0)
 try:
-    asyncio.run(main())
-finally:
-    asyncio.new_event_loop()
+    connect_to_network(wlan)
+except Exception as e:
+    lcd.write_line('Network Error', 0)
+    print('Exception: %s' % e)
+    machine.reset()
+asyncio.run(main())
