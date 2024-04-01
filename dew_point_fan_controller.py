@@ -13,12 +13,11 @@ import ujson
 import uasyncio as asyncio
 import _thread
 
-
 from pcf8574 import PCF8574
 from hd44780 import HD44780
 from lcd import LCD
 
-VERSION = '0.2.0'
+VERSION = '0.2.1'
 
 SWITCHmin = 5.0 #  minimum dew point difference at which the fan switches
 HYSTERESIS = 1.0 #  distance from switch-on and switch-off point
@@ -35,7 +34,7 @@ NetworkStat = {
     network.STAT_CONNECTING: 'connecting in progress',                  #   1
     STAT_NO_IP: 'connected to wifi, but no IP address',                 #   2 (WTF! not defined in network)
     network.STAT_GOT_IP: 'connection successful',                       #   3
-    network.STAT_CONNECT_FAIL: 'failed due to other problems',          #  -1 
+    network.STAT_CONNECT_FAIL: 'failed due to other problems',          #  -1
     network.STAT_NO_AP_FOUND: 'failed because no access point replied', #  -2
     network.STAT_WRONG_PASSWORD: 'failed due to incorrect password',    #  -3
 }
@@ -96,7 +95,6 @@ touch_lcd_on = machine.Pin(12, machine.Pin.IN, machine.Pin.PULL_DOWN)
 
 timer_lcd_light = machine.Timer()
 def iluminate_lcd_background():
-    global lcd
     print('LCD backlight on for 60s.')
     lcd.backlight_on()
     timer_lcd_light.init(mode=machine.Timer.ONE_SHOT, period=60000, callback=lambda t: lcd.backlight_off())
@@ -177,9 +175,9 @@ class MeasurementData(object):
     def get_dew_point_delta(self):
         return self.indoor_dew_point - self.outdoor_dew_point
 
-        
+
 class DewPointFanController(object):
-    
+
     def __init__(self, sensor_indoor, sensor_outdoor):
         # create a semaphore (A.K.A lock)
         self._lock = _thread.allocate_lock()
@@ -192,15 +190,15 @@ class DewPointFanController(object):
 
         # acquire the semaphore lock
         self._lock.acquire()
-        
+
         self._measurement.set_time_utc(time_utc)
-        
+
         self._sensor_indoor.measure()
         self._measurement.set_indoor_measurement(self._sensor_indoor.temperature(), self._sensor_indoor.humidity())
-        
+
         self._sensor_outdoor.measure()
         self._measurement.set_outdoor_measurement(self._sensor_outdoor.temperature(), self._sensor_outdoor.humidity())
-        
+
         dew_point_delta = self._measurement.get_dew_point_delta()
         if dew_point_delta > (SWITCHmin + HYSTERESIS):
             self._measurement.fan = True
@@ -273,32 +271,41 @@ class DewPointFanController(object):
         return ans
 
 
-def connect_to_network(wlan):
+def wlan_connect():
     global secrets
     if not wlan.isconnected():
         led_wlan.off()
-        print('WLAN connecting...')
+        wlan.active(False)
+        print('WLAN connecting')
         wlan.active(True)
         mac = ubinascii.hexlify(network.WLAN().config('mac'),':').decode()
-        print(f'Pico W MAC address: {mac}')        
+        print(f'--> MAC address: {mac}')
+        if mac == '00:00:00:00:00:00':
+            raise RuntimeError('Invalid Mac Address')
         wlan.config(pm = 0xa11140) # disable power-save mode for a web server
         wlan.connect(secrets['wlan']['ssid'], secrets['wlan']['password'])
         for i in range(10):
-            if wlan.status() not in [network.STAT_CONNECTING, STAT_NO_IP]:
+            wlan_status = wlan.status()
+            if wlan_status not in [network.STAT_CONNECTING, STAT_NO_IP]:
                 break
+            print('--> WLAN status:', NetworkStat[wlan_status])
             led_wlan.toggle()
             time.sleep(0.25)
             led_wlan.toggle()
             time.sleep(0.25)
-    print('WLAN status:', NetworkStat[wlan.status()])
+
     if wlan.isconnected():
+        print('WLAN connection ok')
         led_wlan.on()
+        print('WLAN status:', NetworkStat[wlan.status()])
         netConfig = wlan.ifconfig()
         print('  - IPv4 addresse', netConfig[0], '/', netConfig[1])
         print('  - standard gateway:', netConfig[2])
         print('  - DNS server:', netConfig[3])
         ntptime.settime()
     else:
+        print('WLAN connection failed')
+        print('WLAN status:', NetworkStat[wlan_status])
         raise RuntimeError('No WLAN connection')
 
 
@@ -330,21 +337,18 @@ async def serve_client(reader, writer):
     # Client disconnected
 
 
-dew_point_fan_controller = DewPointFanController(sensor_indoor, sensor_outdoor)
-
-timer_messung = machine.Timer()
- 
 def tick(timer):
     t = time.localtime()
     time_utc =  get_time_string(t)
-    lcd.write_line(time_utc, 0)
+    if wlan.isconnected():
+        lcd.write_line(time_utc, 0)
+    else:
+        lcd.write_line('Dew Point Fan Contr.', 0)
     if t[5] % 5 == 0:
         messung(time_utc)
 
 
 def messung(time_utc):
-    global dew_point_fan_controller
-    global lcd
     dew_point_fan_controller.measure(time_utc)
     fan_relais.value(dew_point_fan_controller.fan)
     led_fan_status.value(dew_point_fan_controller.fan)
@@ -353,13 +357,14 @@ def messung(time_utc):
 
 
 async def main():
-    print('Initial dew point measurement...')
+    print('Initial dew point measurement')
     messung(get_time_string(time.localtime()))
 
-    print('Setting up Webserver...')
-    asyncio.create_task(asyncio.start_server(serve_client, '0.0.0.0', 80))
+    if wlan.isconnected():
+        print('Setting up Webserver')
+        asyncio.create_task(asyncio.start_server(serve_client, '0.0.0.0', 80))
 
-    print('Running Dew Point Fan Controller.')
+    print('Running Dew Point Fan Controller')
     timer_messung.init(period=1000, mode=machine.Timer.PERIODIC, callback=tick)
 
     wdt = machine.WDT(timeout=8388)  # enable watchdog with a timeout of 8.3s
@@ -372,13 +377,21 @@ async def main():
         await asyncio.sleep(2)
 
 
-print('Connecting to Network...')
+dew_point_fan_controller = DewPointFanController(sensor_indoor, sensor_outdoor)
+
+timer_messung = machine.Timer()
+
 rp2.country('CH')
 wlan = network.WLAN(network.STA_IF)
-try:
-    connect_to_network(wlan)
-except Exception as e:
-    lcd.write_line('Network Error', 0)
-    print('Exception: %s' % e)
-    machine.reset()
+for i in range(4):
+    try:
+        wlan_connect()
+    except RuntimeError as e:
+        lcd.write_line('Network Error %i' % i, 0)
+        lcd.write_line('%s' % e, 1)
+        print('WLAN status:', NetworkStat[wlan.status()])
+        print('Exception: %s' % e)
+    if wlan.isconnected():
+        break
+
 asyncio.run(main())
