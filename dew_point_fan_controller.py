@@ -5,76 +5,27 @@ import machine
 import rp2
 import dht
 import time
-import math
 import ubinascii
 import network
 import ntptime
 import ujson
 import uasyncio as asyncio
-import _thread
+import sys
+
+sys.path.append('micropython_i2c_lcd')
 
 from pcf8574 import PCF8574
 from hd44780 import HD44780
 from lcd import LCD
 
-VERSION = '0.2.1'
+from networkstat import NetworkStat, STAT_NO_IP
+import dewpointfancontroller
+import webserver
 
-SWITCHmin = 5.0 #  minimum dew point difference at which the fan switches
-HYSTERESIS = 1.0 #  distance from switch-on and switch-off point
-TEMP_indoor_min = 10.0 #  minimum indoor temperature at which the ventilation is activated
-TEMP_outdoor_min = -10.0 #  minimum outdoor temperature at which the ventilation is activated
+
+VERSION = '0.3.0'
 
 ntptime.host = '1.europe.pool.ntp.org' # default time server
-
-
-STAT_NO_IP = 2
-
-NetworkStat = {
-    network.STAT_IDLE: 'no connection and no activity',                 #   0
-    network.STAT_CONNECTING: 'connecting in progress',                  #   1
-    STAT_NO_IP: 'connected to wifi, but no IP address',                 #   2 (WTF! not defined in network)
-    network.STAT_GOT_IP: 'connection successful',                       #   3
-    network.STAT_CONNECT_FAIL: 'failed due to other problems',          #  -1
-    network.STAT_NO_AP_FOUND: 'failed because no access point replied', #  -2
-    network.STAT_WRONG_PASSWORD: 'failed due to incorrect password',    #  -3
-}
-
-HTML = """<!DOCTYPE html>
-<html>
-    <head> <title>Dew Point Fan Controller</title> </head>
-    <body> <h1>Dew Point Fan Controller</h1>
-        <p>%s</p>
-    </body>
-</html>
-"""
-
-METRICS = """# HELP indoor_temp Indoor temperature in degree Celsius.
-# TYPE indoor_temp gauge
-indoor_temp %f
-# HELP indoor_hum Indoor humidity in percent.
-# TYPE indoor_hum gauge
-indoor_hum %f
-# HELP indoor_dew_point Indoor dew point in degree Celsius.
-# TYPE indoor_dew_point gauge
-indoor_dew_point %f
-# HELP outdoor_temp Indoor temperature in degree Celsius.
-# TYPE outdoor_temp gauge
-outdoor_temp %f
-# HELP outdoor_hum Indoor humidity in percent.
-# TYPE outdoor_hum gauge
-outdoor_hum %f
-# HELP outdoor_dew_point Indoor dew point in degree Celsius.
-# TYPE outdoor_dew_point gauge
-outdoor_dew_point %f
-# HELP measurement_counter Counter for the measurements taken since startup.
-# TYPE measurement_counter counter
-measurement_counter %i
-# HELP fan_control Fan Control (1: on, 0: off)
-# TYPE fan_contoll gauge
-fan_control %i
-# HELP fan_state Fan state (1: on, 0: off)
-# TYPE fan_state gauge
-fan_state %i"""
 
 led_wlan = machine.Pin(0, machine.Pin.OUT)
 led_fan_status = machine.Pin(18, machine.Pin.OUT, value=0)
@@ -111,166 +62,6 @@ with open('secrets.json') as fp:
     secrets = ujson.loads(fp.read())
 
 
-def taupunkt(t, r):
-    # Taupunkt Formel: https://www.wetterochs.de/wetter/feuchte.html
-    if t >= 0:
-        a = 7.5
-        b = 237.3
-    else: #  t < 0
-        a = 7.6
-        b = 240.7
-
-    # Sättigungsdampfdruck in hPa
-    sdd = 6.1078 * pow(10, (a*t)/(b+t))
-
-    # Dampfdruck in hPa
-    dd = sdd * (r/100)
-
-    # v-Parameter
-    v = math.log10(dd/6.1078)
-
-    # Taupunkttemperatur (°C)
-    tt = (b*v) / (a-v)
-    return tt
-
-
-class MeasurementData(object):
-    
-    def __init__(self):
-        self.indoor_temp = None
-        self.indoor_hum = None
-        self.indoor_dew_point = None
-        self.outdoor_temp = None
-        self.outdoor_hum = None
-        self.outdoor_dew_point = None
-        self.time_utc = ''
-        self.fan = False
-        self.counter = 0
-
-    def set_indoor_measurement(self, temp, hum):
-        self.indoor_temp = temp
-        self.indoor_hum = hum
-        self.indoor_dew_point = taupunkt(temp, hum)
-    
-    def set_outdoor_measurement(self, temp, hum):
-        self.outdoor_temp = temp
-        self.outdoor_hum = hum
-        self.outdoor_dew_point = taupunkt(temp, hum)
-
-    def set_time_utc(self, time_utc):
-        self.time_utc = time_utc
-
-    def get_data(self):
-        return {
-            "indoor_temp": self.indoor_temp,
-            "indoor_hum": self.indoor_hum,
-            "indoor_dew_point" : self.indoor_dew_point,
-            "outdoor_temp" : self.outdoor_temp,
-            "outdoor_hum" : self.outdoor_hum,
-            "outdoor_dew_point" : self.outdoor_dew_point,
-            "time_utc" : self.time_utc,
-            "fan" : self.fan,
-            "counter" : self.counter}
-
-    def get_dew_point_delta(self):
-        return self.indoor_dew_point - self.outdoor_dew_point
-
-
-class DewPointFanController(object):
-
-    def __init__(self, sensor_indoor, sensor_outdoor):
-        # create a semaphore (A.K.A lock)
-        self._lock = _thread.allocate_lock()
-        self._sensor_indoor = sensor_indoor
-        self._sensor_outdoor = sensor_outdoor
-        self._measurement = MeasurementData()
-
-    def measure(self, time_utc):
-        start = time.ticks_us()
-
-        # acquire the semaphore lock
-        self._lock.acquire()
-
-        self._measurement.set_time_utc(time_utc)
-
-        self._sensor_indoor.measure()
-        self._measurement.set_indoor_measurement(self._sensor_indoor.temperature(), self._sensor_indoor.humidity())
-
-        self._sensor_outdoor.measure()
-        self._measurement.set_outdoor_measurement(self._sensor_outdoor.temperature(), self._sensor_outdoor.humidity())
-
-        dew_point_delta = self._measurement.get_dew_point_delta()
-        if dew_point_delta > (SWITCHmin + HYSTERESIS):
-            self._measurement.fan = True
-        if dew_point_delta < SWITCHmin:
-            self._measurement.fan = False
-        if self._measurement.indoor_temp < TEMP_indoor_min:
-            self._measurement.fan = False
-        if self._measurement.outdoor_temp < TEMP_outdoor_min:
-            self._measurement.fan = False
-
-        self._measurement.counter += 1
-
-        # release the semaphore lock
-        self._lock.release()
-        print('Measure: {}, Duration: {} us'.format(time_utc, time.ticks_diff(time.ticks_us(), start)))
-
-    @property
-    def fan(self):
-        return self._measurement.fan
-
-    def get_metrics(self):
-        # acquire the semaphore lock
-        self._lock.acquire()
-        data = self._measurement.get_data()
-        ans = METRICS % (
-            data['indoor_temp'],
-            data['indoor_hum'],
-            data['indoor_dew_point'],
-            data['outdoor_temp'],
-            data['outdoor_hum'],
-            data['outdoor_dew_point'],
-            data['counter'],
-            data['fan'],
-            fan_status.value())
-        # release the semaphore lock
-        self._lock.release()
-        return ans
-
-    def get_lcd_string(self):
-        # acquire the semaphore lock
-        self._lock.acquire()
-        data = self._measurement.get_data()
-        ans = 'in:  %.1f\337C, %0.1f%%\nout: %0.1f\337C, %0.1f%%\nTi: %.1f\337C To: %.1f\337C' % (
-            data['indoor_temp'],
-            data['indoor_hum'],
-            data['outdoor_temp'],
-            data['outdoor_hum'],
-            data['indoor_dew_point'],
-            data['outdoor_dew_point'])
-        # release the semaphore lock
-        self._lock.release()
-        return ans
-
-    def get_measure_html(self):
-        # acquire the semaphore lock
-        self._lock.acquire()
-        data = self._measurement.get_data()
-        ans = '%s\nin:  %.1f&#176;C, %.1f%%\nout: %.1f&#176;C, %.1f%%\nTi: %.1f&#176;C To: %.1f&#176;C\nFan Control: %s\nFan State: %s' % (
-            data['time_utc'],
-            data['indoor_temp'],
-            data['indoor_hum'],
-            data['outdoor_temp'],
-            data['outdoor_hum'],
-            data['indoor_dew_point'],
-            data['outdoor_dew_point'],
-            data['fan'],
-            bool(fan_status.value()))
-        # release the semaphore lock
-        self._lock.release()
-        return ans
-
-
 def wlan_connect():
     global secrets
     if not wlan.isconnected():
@@ -282,7 +73,7 @@ def wlan_connect():
         print(f'--> MAC address: {mac}')
         if mac == '00:00:00:00:00:00':
             raise RuntimeError('Invalid Mac Address')
-        wlan.config(pm = 0xa11140) # disable power-save mode for a web server
+        wlan.config(pm = 0xa11140) # disable WiFi power-save mode for a web server
         wlan.connect(secrets['wlan']['ssid'], secrets['wlan']['password'])
         for i in range(10):
             wlan_status = wlan.status()
@@ -313,30 +104,6 @@ def get_time_string(t):
     return '%02i.%02i.%02i %02i:%02i:%02i' % (t[2], t[1], t[0], t[3], t[4], t[5])
 
 
-async def serve_client(reader, writer):
-    # Client connected
-    request_line = await reader.readline()
-    print('Request:', request_line)
-    # not interested in HTTP request headers, skip them
-    while await reader.readline() != b'\r\n':
-        pass
-
-    request = str(request_line)
-    metrics = request.find('/metrics')
-
-    if metrics == 6:
-        response = dew_point_fan_controller.get_metrics()
-    else:
-        response = HTML % f'<pre>{dew_point_fan_controller.get_measure_html()}</pre>'
-
-    writer.write('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
-    writer.write(response)
-
-    await writer.drain()
-    await writer.wait_closed()
-    # Client disconnected
-
-
 def tick(timer):
     t = time.localtime()
     time_utc =  get_time_string(t)
@@ -362,7 +129,7 @@ async def main():
 
     if wlan.isconnected():
         print('Setting up Webserver')
-        asyncio.create_task(asyncio.start_server(serve_client, '0.0.0.0', 80))
+        asyncio.create_task(asyncio.start_server(webserver.serve_client, '0.0.0.0', 80))
 
     print('Running Dew Point Fan Controller')
     timer_messung.init(period=1000, mode=machine.Timer.PERIODIC, callback=tick)
@@ -376,12 +143,17 @@ async def main():
         led_onboard.off()
         await asyncio.sleep(2)
 
-
-dew_point_fan_controller = DewPointFanController(sensor_indoor, sensor_outdoor)
+dew_point_fan_controller = dewpointfancontroller.DewPointFanController(sensor_indoor, sensor_outdoor)
 
 timer_messung = machine.Timer()
 
+# set WiFi Country
 rp2.country('CH')
+network.country('CH')
+
+# set hostname
+network.hostname("dwpt")
+
 wlan = network.WLAN(network.STA_IF)
 for i in range(4):
     try:
