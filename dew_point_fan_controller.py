@@ -74,7 +74,21 @@ def wlan_connect():
         if mac == '00:00:00:00:00:00':
             raise RuntimeError('Invalid Mac Address')
         wlan.config(pm = 0xa11140) # disable WiFi power-save mode for a web server
-        wlan.connect(secrets['wlan']['ssid'], secrets['wlan']['password'])
+
+        wlans = wlan.scan()
+        search_wlan = True
+        for (ssid, bssid, channel, RSSI, security, hidden) in wlans:
+            print(f'Found WLAN with ssid: {ssid}')
+            for (my_ssid, my_passwd) in [(_.get('ssid'), _.get('password')) for _ in secrets.get('wlans')]:
+                if ssid.decode('utf8') == my_ssid:
+                    search_wlan = False
+                    print(f'  Match! WLAN credentials found.')
+                    lcd.write_line(f'WiFi {my_ssid}', 1)
+                    wlan.connect(my_ssid, my_passwd)
+                    break
+            if not search_wlan:
+                break
+
         for i in range(10):
             wlan_status = wlan.status()
             if wlan_status not in [network.STAT_CONNECTING, STAT_NO_IP]:
