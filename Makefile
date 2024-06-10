@@ -12,7 +12,7 @@ all: $(BIN)/rshell install
 install: $(BIN)/rshell
 	$(BIN)/rshell cp -r micropython_i2c_lcd $(TARGET)
 	$(BIN)/rshell cp *.py $(TARGET)
-
+	$(BIN)/rshell cp config.json $(TARGET)
 
 $(BIN)/rshell: venv venv-update
 	$(BIN)/pip install rshell
