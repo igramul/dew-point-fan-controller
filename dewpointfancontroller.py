@@ -41,6 +41,7 @@ class DewPointFanController(object):
         self._sensor_indoor = sensor_indoor
         self._sensor_outdoor = sensor_outdoor
         self._measurement = measurementdata.MeasurementData()
+        self._fan_status = None
 
     def measure(self, time_utc):
         start = time.ticks_us()
@@ -49,7 +50,7 @@ class DewPointFanController(object):
         self._lock.acquire()
 
         with open('config.json') as fp:
-            config = ujson.loads(fp.read()).get('config')
+            config = ujson.loads(fp.read()).get('DewPointFanController')
 
         SWITCHmin = config.get('switch-min').get('value', 5.0) #  minimum dew point difference at which the fan switches
         HYSTERESIS = config.get('hysteresis').get('value', 1.0) #  distance from switch-on and switch-off point
@@ -84,6 +85,9 @@ class DewPointFanController(object):
     def fan(self):
         return self._measurement.fan
 
+    def set_fan_status(self, fan_status):
+        self._fan_status = fan_status
+
     def get_metrics(self):
         # acquire the semaphore lock
         self._lock.acquire()
@@ -97,7 +101,7 @@ class DewPointFanController(object):
             data['outdoor_dew_point'],
             data['counter'],
             data['fan'],
-            fan_status.value())
+            self._fan_status)
         # release the semaphore lock
         self._lock.release()
         return ans
@@ -130,7 +134,7 @@ class DewPointFanController(object):
             data['indoor_dew_point'],
             data['outdoor_dew_point'],
             data['fan'],
-            bool(fan_status.value()))
+            bool(self._fan_status))
         # release the semaphore lock
         self._lock.release()
         return ans

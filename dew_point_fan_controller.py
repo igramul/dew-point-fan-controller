@@ -20,7 +20,6 @@ from lcd import LCD
 
 from networkstat import NetworkStat, STAT_NO_IP
 import dewpointfancontroller
-import webserver
 
 
 VERSION = '0.3.0'
@@ -120,7 +119,7 @@ def get_time_string(t):
 
 def tick(timer):
     t = time.localtime()
-    time_utc =  get_time_string(t)
+    time_utc = get_time_string(t)
     if wlan.isconnected():
         lcd.write_line(time_utc, 0)
     else:
@@ -133,8 +132,43 @@ def messung(time_utc):
     dew_point_fan_controller.measure(time_utc)
     fan_relais.value(dew_point_fan_controller.fan)
     led_fan_status.value(dew_point_fan_controller.fan)
+    dew_point_fan_controller.set_fan_status(fan_status.value())
     for idx, line in enumerate(dew_point_fan_controller.get_lcd_string().splitlines()):
         lcd.write_line(line, idx+1)
+
+
+HTML = """<!DOCTYPE html>
+<html>
+    <head> <title>Dew Point Fan Controller</title> </head>
+    <body> <h1>Dew Point Fan Controller</h1>
+        <p>%s</p>
+    </body>
+</html>
+"""
+
+
+async def serve_client(reader, writer):
+    # Client connected
+    request_line = await reader.readline()
+    print('Request:', request_line)
+    # not interested in HTTP request headers, skip them
+    while await reader.readline() != b'\r\n':
+        pass
+
+    request = str(request_line)
+    metrics = request.find('/metrics')
+
+    if metrics == 6:
+        response = dew_point_fan_controller.get_metrics()
+    else:
+        response = HTML % f'<pre>{dew_point_fan_controller.get_measure_html()}</pre>'
+
+    writer.write('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
+    writer.write(response)
+
+    await writer.drain()
+    await writer.wait_closed()
+    # Client disconnected
 
 
 async def main():
@@ -143,7 +177,7 @@ async def main():
 
     if wlan.isconnected():
         print('Setting up Webserver')
-        asyncio.create_task(asyncio.start_server(webserver.serve_client, '0.0.0.0', 80))
+        asyncio.create_task(asyncio.start_server(serve_client, '0.0.0.0', 80))
 
     print('Running Dew Point Fan Controller')
     timer_messung.init(period=1000, mode=machine.Timer.PERIODIC, callback=tick)
