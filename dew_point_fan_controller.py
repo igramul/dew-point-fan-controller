@@ -190,7 +190,7 @@ async def main():
         led_onboard.off()
         await asyncio.sleep(2)
 
-dew_point_fan_controller = dewpointfancontroller.DewPointFanController(sensor_indoor, sensor_outdoor)
+dew_point_fan_controller = dewpointfancontroller.DewPointFanController(sensor_indoor, sensor_outdoor, version)
 
 timer_messung = machine.Timer()
 

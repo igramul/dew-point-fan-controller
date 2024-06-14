@@ -22,9 +22,9 @@ outdoor_hum %f
 # HELP outdoor_dew_point Indoor dew point in degree Celsius.
 # TYPE outdoor_dew_point gauge
 outdoor_dew_point %f
-# HELP measurement_counter Counter for the measurements taken since startup.
-# TYPE measurement_counter counter
-measurement_counter %i
+# HELP measurement_count Counter for the measurements taken since startup.
+# TYPE measurement_count counter
+measurement_count{version="%s"} %i
 # HELP fan_control Fan Control (1: on, 0: off)
 # TYPE fan_contoll gauge
 fan_control %i
@@ -35,13 +35,14 @@ fan_state %i"""
 
 class DewPointFanController(object):
 
-    def __init__(self, sensor_indoor, sensor_outdoor):
+    def __init__(self, sensor_indoor, sensor_outdoor, version):
         # create a semaphore (A.K.A lock)
         self._lock = _thread.allocate_lock()
         self._sensor_indoor = sensor_indoor
         self._sensor_outdoor = sensor_outdoor
         self._measurement = measurementdata.MeasurementData()
         self._fan_status = None
+        self._version = version
 
     def measure(self, time_utc):
         start = time.ticks_us()
@@ -99,6 +100,7 @@ class DewPointFanController(object):
             data['outdoor_temp'],
             data['outdoor_hum'],
             data['outdoor_dew_point'],
+            self._version,
             data['counter'],
             data['fan'],
             self._fan_status)
