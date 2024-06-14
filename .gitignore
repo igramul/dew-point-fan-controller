@@ -1,3 +1,4 @@
 /.micropico
 /.DS_Store
 /venv/
+/version.py
