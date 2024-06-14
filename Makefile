@@ -4,7 +4,7 @@ BIN    = ./venv/bin
 TARGET = /pyboard
 
 
-version.py:
+version.py: .git
 	echo version=`git describe` > $@
 	echo commit=`git rev-parse HEAD` >> $@
 	echo commit_short=`git rev-parse --short HEAD` >> $@
