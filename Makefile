@@ -30,10 +30,14 @@ venv:
 venv-update: venv
 	$(BIN)/pip install --upgrade pip setuptools
 
+.PHONY:
+clean:
+	rm version.py
+
 .PHONY: venv-clean
 venv-clean:
 	rm -r venv
 
 .PHONY: clean-all
-clean-all: venv-clean
+clean-all: clean venv-clean
 
