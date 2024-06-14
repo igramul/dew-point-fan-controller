@@ -21,8 +21,7 @@ from lcd import LCD
 from networkstat import NetworkStat, STAT_NO_IP
 import dewpointfancontroller
 
-
-VERSION = '0.3.0'
+from version import version
 
 ntptime.host = '1.europe.pool.ntp.org' # default time server
 
@@ -53,7 +52,7 @@ touch_lcd_on.irq(lambda irq:iluminate_lcd_background(), machine.Pin.IRQ_RISING)
 
 lcd.write_line('Dew Point Fan Contr.', 0)
 lcd.write_line('--------------------', 1)
-lcd.write_line(f'Version {VERSION}', 2)
+lcd.write_line(f'Version {version}', 2)
 lcd.write_line('lburger@igramul.ch', 3)
 iluminate_lcd_background()
 

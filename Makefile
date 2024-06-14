@@ -5,17 +5,17 @@ TARGET = /pyboard
 
 
 version.py: .git
-	echo version=`git describe` > $@
-	echo commit=`git rev-parse HEAD` >> $@
-	echo commit_short=`git rev-parse --short HEAD` >> $@
+	echo version=\"`git describe`\" > $@
+	echo commit=\"`git rev-parse HEAD`\" >> $@
+	echo commit_short=\"`git rev-parse --short HEAD`\" >> $@
 
 
 .PHONY: all
-all: $(BIN)/rshell install
+all: install
 
 
 .PHONY: install
-install: $(BIN)/rshell
+install: $(BIN)/rshell version.py
 	$(BIN)/rshell cp -r micropython_i2c_lcd $(TARGET)
 	$(BIN)/rshell cp *.py $(TARGET)
 	$(BIN)/rshell cp config.json $(TARGET)
