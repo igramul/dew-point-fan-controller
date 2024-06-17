@@ -1,3 +1,5 @@
+/.idea
+__pycache__/
 /.micropico
 /.DS_Store
 /venv/
