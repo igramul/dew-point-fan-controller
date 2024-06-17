@@ -41,3 +41,6 @@ venv-clean:
 .PHONY: clean-all
 clean-all: clean venv-clean
 
+.PHONY: test
+test:
+	$(PYTHON) -m unittest discover tests "*_test.py"
