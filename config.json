@@ -1,5 +1,6 @@
 {
     "Hostname": "dwpt",
+    "Wi-Fi Country": "CH",
     "DewPointFanController": {
         "switch-min": {
             "value": 5.0,

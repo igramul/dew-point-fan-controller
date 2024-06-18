@@ -54,13 +54,16 @@ def iluminate_lcd_background():
     timer_lcd_light.init(mode=machine.Timer.ONE_SHOT, period=60000, callback=lambda t: lcd.backlight_off())
 
 
-touch_lcd_on.irq(lambda irq:iluminate_lcd_background(), machine.Pin.IRQ_RISING)
+touch_lcd_on.irq(lambda irq: iluminate_lcd_background(), machine.Pin.IRQ_RISING)
 
 lcd.write_line('Dew Point Fan Contr.', 0)
 lcd.write_line('--------------------', 1)
 lcd.write_line(f'Version {version}', 2)
 lcd.write_line('lburger@igramul.ch', 3)
 iluminate_lcd_background()
+
+with open('config.json') as fp:
+    config = ujson.loads(fp.read())
 
 with open('secrets.json') as fp:
     secrets = ujson.loads(fp.read())
@@ -73,7 +76,7 @@ def wlan_connect():
         wlan.active(False)
         print('WLAN connecting')
         wlan.active(True)
-        mac = ubinascii.hexlify(network.WLAN().config('mac'),':').decode()
+        mac = ubinascii.hexlify(network.WLAN().config('mac'), ':').decode()
         print(f'--> MAC address: {mac}')
         if mac == '00:00:00:00:00:00':
             raise RuntimeError('Invalid Mac Address')
@@ -87,13 +90,13 @@ def wlan_connect():
                 if ssid.decode('utf8') == my_ssid:
                     search_wlan = False
                     print(f'  Match! WLAN credentials found.')
-                    lcd.write_line(f'WiFi {my_ssid}', 1)
+                    lcd.write_line(f'WLAN: {my_ssid}', 1)
                     wlan.connect(my_ssid, my_passwd)
                     break
             if not search_wlan:
                 break
 
-        for i in range(10):
+        for _ in range(10):
             wlan_status = wlan.status()
             if wlan_status not in [network.STAT_CONNECTING, STAT_NO_IP]:
                 break
@@ -107,14 +110,14 @@ def wlan_connect():
         print('WLAN connection ok')
         led_wlan.on()
         print('WLAN status:', NetworkStat[wlan.status()])
-        netConfig = wlan.ifconfig()
-        print('  - IPv4 addresse', netConfig[0], '/', netConfig[1])
-        print('  - standard gateway:', netConfig[2])
-        print('  - DNS server:', netConfig[3])
+        net_config = wlan.ifconfig()
+        print('  - IPv4 addresse', net_config[0], '/', net_config[1])
+        print('  - standard gateway:', net_config[2])
+        print('  - DNS server:', net_config[3])
         ntptime.settime()
     else:
         print('WLAN connection failed')
-        print('WLAN status:', NetworkStat[wlan_status])
+        print('WLAN status:', NetworkStat[wlan.status()])
         raise RuntimeError('No WLAN connection')
 
 
@@ -130,10 +133,10 @@ def tick(timer):
     else:
         lcd.write_line('Dew Point Fan Contr.', 0)
     if t[5] % 5 == 0:
-        messung(time_utc)
+        measurement(time_utc)
 
 
-def messung(time_utc):
+def measurement(time_utc):
     dew_point_fan_controller.measure(time_utc)
     fan_relais.value(dew_point_fan_controller.fan)
     led_fan_status.value(dew_point_fan_controller.fan)
@@ -151,14 +154,14 @@ web_server = webserver.WebServer(dew_point_fan_controller=dew_point_fan_controll
 
 async def main():
     print('Initial dew point measurement')
-    messung(get_time_string(time.localtime()))
+    measurement(get_time_string(time.localtime()))
 
     if wlan.isconnected():
         print('Setting up Webserver')
         asyncio.create_task(asyncio.start_server(web_server.serve_client, '0.0.0.0', 80))
 
     print('Running Dew Point Fan Controller')
-    timer_messung.init(period=1000, mode=machine.Timer.PERIODIC, callback=tick)
+    timer_measurement.init(period=1000, mode=machine.Timer.PERIODIC, callback=tick)
 
     wdt = machine.WDT(timeout=8388)  # enable watchdog with a timeout of 8.3s
 
@@ -169,14 +172,14 @@ async def main():
         led_onboard.off()
         await asyncio.sleep(2)
 
-timer_messung = machine.Timer()
+timer_measurement = machine.Timer()
 
 # set Wi-Fi Country
-rp2.country('CH')
-network.country('CH')
+rp2.country(config.get('Wi-Fi Country'))
+network.country(config.get('Wi-Fi Country'))
 
 # set hostname
-network.hostname("dwpt")
+network.hostname(config.get('Hostname'))
 
 wlan = network.WLAN(network.STA_IF)
 for i in range(4):
@@ -188,6 +191,7 @@ for i in range(4):
         print('WLAN status:', NetworkStat[wlan.status()])
         print('Exception: %s' % e)
     if wlan.isconnected():
+        lcd.write_line(f'Hostname: {config.get("Hostname")}', 2)
         break
 
 asyncio.run(main())
