@@ -2,7 +2,7 @@ import unittest
 import csv
 import os
 
-from taupunkt import taupunkt
+from firmware.taupunkt import taupunkt
 
 
 class TestTaupunkt(unittest.TestCase):

@@ -3,4 +3,4 @@ __pycache__/
 /.micropico
 /.DS_Store
 /venv/
-/version.py
+firmware/version.py
