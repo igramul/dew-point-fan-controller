@@ -23,7 +23,7 @@ import dewpointfancontroller
 
 from version import version
 
-ntptime.host = '1.europe.pool.ntp.org' # default time server
+ntptime.host = '1.europe.pool.ntp.org'  # default time server
 
 led_wlan = machine.Pin(0, machine.Pin.OUT)
 led_fan_status = machine.Pin(18, machine.Pin.OUT, value=0)
@@ -43,10 +43,13 @@ lcd = LCD(hd44780, pcf8574)
 touch_lcd_on = machine.Pin(12, machine.Pin.IN, machine.Pin.PULL_DOWN)
 
 timer_lcd_light = machine.Timer()
+
+
 def iluminate_lcd_background():
     print('LCD backlight on for 60s.')
     lcd.backlight_on()
     timer_lcd_light.init(mode=machine.Timer.ONE_SHOT, period=60000, callback=lambda t: lcd.backlight_off())
+
 
 touch_lcd_on.irq(lambda irq:iluminate_lcd_background(), machine.Pin.IRQ_RISING)
 
