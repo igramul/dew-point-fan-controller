@@ -12,6 +12,8 @@ import ujson
 import uasyncio as asyncio
 import sys
 
+from webserver import WebServer
+
 sys.path.append('micropython_i2c_lcd')
 
 from pcf8574 import PCF8574
@@ -139,38 +141,9 @@ def messung(time_utc):
         lcd.write_line(line, idx+1)
 
 
-HTML = """<!DOCTYPE html>
-<html>
-    <head> <title>Dew Point Fan Controller</title> </head>
-    <body> <h1>Dew Point Fan Controller</h1>
-        <p>%s</p>
-    </body>
-</html>
-"""
+dew_point_fan_controller = dewpointfancontroller.DewPointFanController(sensor_indoor, sensor_outdoor, version)
 
-
-async def serve_client(reader, writer):
-    # Client connected
-    request_line = await reader.readline()
-    print('Request:', request_line)
-    # not interested in HTTP request headers, skip them
-    while await reader.readline() != b'\r\n':
-        pass
-
-    request = str(request_line)
-    metrics = request.find('/metrics')
-
-    if metrics == 6:
-        response = dew_point_fan_controller.get_metrics()
-    else:
-        response = HTML % f'<pre>{dew_point_fan_controller.get_measure_html()}</pre>'
-
-    writer.write('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
-    writer.write(response)
-
-    await writer.drain()
-    await writer.wait_closed()
-    # Client disconnected
+web_server = WebServer(dew_point_fan_controller=dew_point_fan_controller)
 
 
 async def main():
@@ -179,7 +152,7 @@ async def main():
 
     if wlan.isconnected():
         print('Setting up Webserver')
-        asyncio.create_task(asyncio.start_server(serve_client, '0.0.0.0', 80))
+        asyncio.create_task(asyncio.start_server(web_server.serve_client, '0.0.0.0', 80))
 
     print('Running Dew Point Fan Controller')
     timer_messung.init(period=1000, mode=machine.Timer.PERIODIC, callback=tick)
@@ -192,8 +165,6 @@ async def main():
         await asyncio.sleep(0.25)
         led_onboard.off()
         await asyncio.sleep(2)
-
-dew_point_fan_controller = dewpointfancontroller.DewPointFanController(sensor_indoor, sensor_outdoor, version)
 
 timer_messung = machine.Timer()
 
