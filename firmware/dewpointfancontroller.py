@@ -2,8 +2,6 @@ import _thread
 import time
 import ujson
 
-import measurementdata
-
 METRICS = """# HELP indoor_temp Indoor temperature in degree Celsius.
 # TYPE indoor_temp gauge
 indoor_temp %f
@@ -35,12 +33,12 @@ fan_state %i"""
 
 class DewPointFanController(object):
 
-    def __init__(self, sensor_indoor, sensor_outdoor, version):
+    def __init__(self, sensor_indoor, sensor_outdoor, version, measurementdata):
         # create a semaphore (A.K.A lock)
         self._lock = _thread.allocate_lock()
         self._sensor_indoor = sensor_indoor
         self._sensor_outdoor = sensor_outdoor
-        self._measurement = measurementdata.MeasurementData()
+        self._measurement = measurementdata
         self._fan_status = None
         self._version = version
 

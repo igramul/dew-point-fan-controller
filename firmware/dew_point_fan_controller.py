@@ -12,7 +12,6 @@ import ujson
 import uasyncio as asyncio
 import sys
 
-from webserver import WebServer
 
 sys.path.append('micropython_i2c_lcd')
 
@@ -21,7 +20,9 @@ from hd44780 import HD44780
 from lcd import LCD
 
 from networkstat import NetworkStat, STAT_NO_IP
+import measurementdata
 import dewpointfancontroller
+import webserver
 
 from version import version
 
@@ -141,9 +142,11 @@ def messung(time_utc):
         lcd.write_line(line, idx+1)
 
 
-dew_point_fan_controller = dewpointfancontroller.DewPointFanController(sensor_indoor, sensor_outdoor, version)
+measurement_data = measurementdata.MeasurementData()
 
-web_server = WebServer(dew_point_fan_controller=dew_point_fan_controller)
+dew_point_fan_controller = dewpointfancontroller.DewPointFanController(sensor_indoor, sensor_outdoor, version, measurement_data)
+
+web_server = webserver.WebServer(dew_point_fan_controller=dew_point_fan_controller)
 
 
 async def main():
@@ -168,7 +171,7 @@ async def main():
 
 timer_messung = machine.Timer()
 
-# set WiFi Country
+# set Wi-Fi Country
 rp2.country('CH')
 network.country('CH')
 
