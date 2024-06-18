@@ -20,6 +20,7 @@ install: $(BIN)/rshell firmware/version.py
 	$(BIN)/rshell cp -r firmware/micropython_i2c_lcd $(TARGET)
 	$(BIN)/rshell cp firmware/*.py $(TARGET)
 	$(BIN)/rshell cp config.json $(TARGET)
+	$(BIN)/rshell "repl ~ import machine ~ machine.soft_reset() ~"
 
 $(BIN)/rshell: venv venv-update
 	$(BIN)/pip install rshell
