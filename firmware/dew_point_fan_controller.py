@@ -1,8 +1,6 @@
 # Dew Point Fan Controller
 # January 2024, by Lukas Burger
-
 import machine
-
 import dht
 import time
 import ujson
@@ -15,52 +13,49 @@ from pcf8574 import PCF8574
 from hd44780 import HD44780
 from lcd import LCD
 
-import measurementdata
-import dewpointfancontroller
+from measurementdata import MeasurementData
+from dewpointfancontroller import DewPointFanController
 import webserver
 import wlan
 
 from version import version
-
-led_wlan = machine.Pin(0, machine.Pin.OUT)
-led_fan_status = machine.Pin(18, machine.Pin.OUT, value=0)
-led_onboard = machine.Pin("LED", machine.Pin.OUT, value=0)
-
-sensor_indoor = dht.DHT22(machine.Pin(6))
-sensor_outdoor = dht.DHT22(machine.Pin(7))
-
-fan_relais = machine.Pin(15, machine.Pin.OUT)
-fan_status = machine.Pin(13, machine.Pin.IN)
-
-i2c = machine.I2C(1, sda=machine.Pin(2), scl=machine.Pin(3), freq=400000)
-pcf8574 = PCF8574(i2c)
-hd44780 = HD44780(pcf8574, num_lines=4, num_columns=20)
-lcd = LCD(hd44780, pcf8574)
-
-touch_lcd_on = machine.Pin(12, machine.Pin.IN, machine.Pin.PULL_DOWN)
-
-timer_lcd_light = machine.Timer()
-
-
-def illuminate_lcd_background():
-    print('LCD backlight on for 60s.')
-    lcd.backlight_on()
-    timer_lcd_light.init(mode=machine.Timer.ONE_SHOT, period=60000, callback=lambda t: lcd.backlight_off())
-
-
-touch_lcd_on.irq(lambda irq: illuminate_lcd_background(), machine.Pin.IRQ_RISING)
-
-lcd.write_line('Dew Point Fan Contr.', 0)
-lcd.write_line('--------------------', 1)
-lcd.write_line(f'Version {version}', 2)
-lcd.write_line('lburger@igramul.ch', 3)
-illuminate_lcd_background()
 
 with open('config.json') as fp:
     config = ujson.loads(fp.read())
 
 with open('secrets.json') as fp:
     secrets = ujson.loads(fp.read())
+
+led_onboard = machine.Pin("LED", machine.Pin.OUT, value=0)
+led_wlan = machine.Pin(0, machine.Pin.OUT)
+led_fan_status = machine.Pin(18, machine.Pin.OUT, value=0)
+fan_relay = machine.Pin(15, machine.Pin.OUT)
+touch_button = machine.Pin(12, machine.Pin.IN, machine.Pin.PULL_DOWN)
+fan_status = machine.Pin(13, machine.Pin.IN)
+
+sensor_indoor = dht.DHT22(machine.Pin(6))
+sensor_outdoor = dht.DHT22(machine.Pin(7))
+
+i2c = machine.I2C(1, sda=machine.Pin(2), scl=machine.Pin(3), freq=400000)
+
+pcf8574 = PCF8574(i2c)
+hd44780 = HD44780(pcf8574, num_lines=4, num_columns=20)
+lcd = LCD(hd44780, pcf8574)
+
+timer_lcd_light = machine.Timer()
+
+timer_measurement = machine.Timer()
+
+measurement_data = MeasurementData()
+dew_point_fan_controller = DewPointFanController(sensor_indoor, sensor_outdoor, version, measurement_data)
+web_server = webserver.WebServer(dew_point_fan_controller=dew_point_fan_controller)
+wlan = wlan.MicroPythonWlan(config=config, secrets=secrets, led=led_wlan, lcd=lcd)
+
+
+def illuminate_lcd_background():
+    print('LCD backlight on for 60s.')
+    lcd.backlight_on()
+    timer_lcd_light.init(mode=machine.Timer.ONE_SHOT, period=60000, callback=lambda t: lcd.backlight_off())
 
 
 def get_time_string(t):
@@ -80,20 +75,11 @@ def tick(timer):
 
 def measurement(time_utc):
     dew_point_fan_controller.measure(time_utc)
-    fan_relais.value(dew_point_fan_controller.fan)
+    fan_relay.value(dew_point_fan_controller.fan)
     led_fan_status.value(dew_point_fan_controller.fan)
     dew_point_fan_controller.set_fan_status(fan_status.value())
     for idx, line in enumerate(dew_point_fan_controller.get_lcd_string().splitlines()):
         lcd.write_line(line, idx+1)
-
-
-measurement_data = measurementdata.MeasurementData()
-
-dew_point_fan_controller = dewpointfancontroller.DewPointFanController(sensor_indoor, sensor_outdoor, version, measurement_data)
-
-web_server = webserver.WebServer(dew_point_fan_controller=dew_point_fan_controller)
-
-wlan = wlan.MicroPythonWlan(config=config, secrets=secrets, led=led_wlan, lcd=lcd)
 
 
 async def main():
@@ -116,7 +102,13 @@ async def main():
         led_onboard.off()
         await asyncio.sleep(2)
 
-timer_measurement = machine.Timer()
+lcd.write_line('Dew Point Fan Contr.', 0)
+lcd.write_line('--------------------', 1)
+lcd.write_line(f'Version {version}', 2)
+lcd.write_line('lburger@igramul.ch', 3)
+illuminate_lcd_background()
+
+touch_button.irq(lambda irq: illuminate_lcd_background(), machine.Pin.IRQ_RISING)
 
 wlan.start()
 
