@@ -9,11 +9,11 @@ from networkstat import NetworkStat, STAT_NO_IP
 
 class MicroPythonWlan(object):
 
-    def __init__(self, config, secrets, led, lcd):
+    def __init__(self, config, secrets, led, display):
         self._config = config
         self._secrets = secrets
         self._led = led
-        self._lcd = lcd
+        self._display = display
 
         # set Wi-Fi Country
         rp2.country(self._config.get('Wi-Fi Country'))
@@ -32,12 +32,12 @@ class MicroPythonWlan(object):
             try:
                 self._wlan_connect()
             except RuntimeError as e:
-                self._lcd.write_line('Network Error %i' % i, 0)
-                self._lcd.write_line('%s' % e, 1)
+                self._display.lcd.write_line('Network Error %i' % i, 0)
+                self._display.lcd.write_line('%s' % e, 1)
                 print('WLAN status:', NetworkStat[self._wlan.status()])
                 print('Exception: %s' % e)
             if self._wlan.isconnected():
-                self._lcd.write_line(f'Hostname: {self._config.get("Hostname")}', 2)
+                self._display.lcd.write_line(f'Hostname: {self._config.get("Hostname")}', 2)
                 break
 
     @property
@@ -64,7 +64,7 @@ class MicroPythonWlan(object):
                     if ssid.decode('utf8') == my_ssid:
                         search_wlan = False
                         print(f'  Match! WLAN credentials found.')
-                        self._lcd.write_line(f'WLAN: {my_ssid}', 1)
+                        self._display.lcd.write_line(f'WLAN: {my_ssid}', 1)
                         self._wlan.connect(my_ssid, my_passwd)
                         break
                 if not search_wlan:

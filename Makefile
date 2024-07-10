@@ -17,6 +17,7 @@ all: install
 
 .PHONY: install
 install: $(BIN)/rshell firmware/version.py
+	$(BIN)/rshell connect
 	$(BIN)/rshell cp -r firmware/micropython_i2c_lcd $(TARGET)
 	$(BIN)/rshell cp firmware/*.py $(TARGET)
 	$(BIN)/rshell cp config.json secrets.json $(TARGET)

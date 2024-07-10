@@ -6,15 +6,9 @@ import time
 import ujson
 import uasyncio as asyncio
 
-import sys
-sys.path.append('micropython_i2c_lcd')
-
-from pcf8574 import PCF8574
-from hd44780 import HD44780
-from lcd import LCD
-
 from measurementdata import MeasurementData
 from dewpointfancontroller import DewPointFanController
+from display import Display
 import webserver
 import wlan
 
@@ -37,25 +31,14 @@ sensor_indoor = dht.DHT22(machine.Pin(6))
 sensor_outdoor = dht.DHT22(machine.Pin(7))
 
 i2c = machine.I2C(1, sda=machine.Pin(2), scl=machine.Pin(3), freq=400000)
-
-pcf8574 = PCF8574(i2c)
-hd44780 = HD44780(pcf8574, num_lines=4, num_columns=20)
-lcd = LCD(hd44780, pcf8574)
-
-timer_lcd_light = machine.Timer()
+display = Display(i2c=i2c)
 
 timer_measurement = machine.Timer()
 
 measurement_data = MeasurementData()
 dew_point_fan_controller = DewPointFanController(sensor_indoor, sensor_outdoor, version, measurement_data)
 web_server = webserver.WebServer(dew_point_fan_controller=dew_point_fan_controller)
-wlan = wlan.MicroPythonWlan(config=config, secrets=secrets, led=led_wlan, lcd=lcd)
-
-
-def illuminate_lcd_background():
-    print('LCD backlight on for 60s.')
-    lcd.backlight_on()
-    timer_lcd_light.init(mode=machine.Timer.ONE_SHOT, period=60000, callback=lambda t: lcd.backlight_off())
+wlan = wlan.MicroPythonWlan(config=config, secrets=secrets, led=led_wlan, display=display)
 
 
 def get_time_string(t):
@@ -66,9 +49,9 @@ def tick(timer):
     t = time.localtime()
     time_utc = get_time_string(t)
     if wlan.is_connected:
-        lcd.write_line(time_utc, 0)
+        display.lcd.write_line(time_utc, 0)
     else:
-        lcd.write_line('Dew Point Fan Contr.', 0)
+        display.lcd.write_line('Dew Point Fan Contr.', 0)
     if t[5] % 5 == 0:
         measurement(time_utc)
 
@@ -79,7 +62,7 @@ def measurement(time_utc):
     led_fan_status.value(dew_point_fan_controller.fan)
     dew_point_fan_controller.set_fan_status(fan_status.value())
     for idx, line in enumerate(dew_point_fan_controller.get_lcd_string().splitlines()):
-        lcd.write_line(line, idx+1)
+        display.lcd.write_line(line, idx+1)
 
 
 async def main():
@@ -102,13 +85,13 @@ async def main():
         led_onboard.off()
         await asyncio.sleep(2)
 
-lcd.write_line('Dew Point Fan Contr.', 0)
-lcd.write_line('--------------------', 1)
-lcd.write_line(f'Version {version}', 2)
-lcd.write_line('lburger@igramul.ch', 3)
-illuminate_lcd_background()
+display.lcd.write_line('Dew Point Fan Contr.', 0)
+display.lcd.write_line('--------------------', 1)
+display.lcd.write_line(f'Version {version}', 2)
+display.lcd.write_line('lburger@igramul.ch', 3)
+display.illuminate()
 
-touch_button.irq(lambda irq: illuminate_lcd_background(), machine.Pin.IRQ_RISING)
+touch_button.irq(lambda irq: display.illuminate(), machine.Pin.IRQ_RISING)
 
 wlan.start()
 
