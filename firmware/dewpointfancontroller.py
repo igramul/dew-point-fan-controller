@@ -33,12 +33,12 @@ fan_state %i"""
 
 class DewPointFanController(object):
 
-    def __init__(self, sensor_indoor, sensor_outdoor, version, measurementdata):
+    def __init__(self, sensor_indoor, sensor_outdoor, version, measurement_data):
         # create a semaphore (A.K.A lock)
         self._lock = _thread.allocate_lock()
         self._sensor_indoor = sensor_indoor
         self._sensor_outdoor = sensor_outdoor
-        self._measurement = measurementdata
+        self._measurement = measurement_data
         self._fan_status = None
         self._version = version
 
