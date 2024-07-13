@@ -18,5 +18,15 @@
             "value": -10.0,
             "description": "minimum outdoor temperature at which the ventilation is activated"
         }
+    },
+    "Calibration": {
+        "SensorIndoor": {
+            "offset-temp": -1.6,
+            "offset-hum": -0.1
+        },
+        "SensorOutdoor": {
+            "offset-temp": -0.9,
+            "offset-hum": 0
+        }
     }
 }

@@ -33,7 +33,7 @@ fan_state %i"""
 
 class DewPointFanController(object):
 
-    def __init__(self, sensor_indoor, sensor_outdoor, version, measurement_data):
+    def __init__(self, sensor_indoor, sensor_outdoor, version, measurement_data, config):
         # create a semaphore (A.K.A lock)
         self._lock = _thread.allocate_lock()
         self._sensor_indoor = sensor_indoor
@@ -41,6 +41,7 @@ class DewPointFanController(object):
         self._measurement = measurement_data
         self._fan_status = None
         self._version = version
+        self._config = config
 
     def measure(self, time_utc):
         start = time.ticks_us()
@@ -51,10 +52,10 @@ class DewPointFanController(object):
         with open('config.json') as fp:
             config = ujson.loads(fp.read()).get('DewPointFanController')
 
-        SWITCHmin = config.get('switch-min').get('value', 5.0)  # minimum dew point difference at which the fan switches
-        HYSTERESIS = config.get('hysteresis').get('value', 1.0)  # distance from switch-on and switch-off point
-        TEMP_indoor_min = config.get('temp-indoor-min').get('value', 10.0)  # minimum indoor temperature at which the ventilation is activated
-        TEMP_outdoor_min = config.get('temp-outdoor-min').get('value', -10.0)  # minimum outdoor temperature at which the ventilation is activated
+        SWITCHmin = self._config.get('switch-min').get('value')  # minimum dew point difference at which the fan switches
+        HYSTERESIS = self._config.get('hysteresis').get('value')  # distance from switch-on and switch-off point
+        TEMP_indoor_min = self._config.get('temp-indoor-min').get('value')  # minimum indoor temperature at which the ventilation is activated
+        TEMP_outdoor_min = self._config.get('temp-outdoor-min').get('value')  # minimum outdoor temperature at which the ventilation is activated
 
         self._measurement.set_time_utc(time_utc)
 
