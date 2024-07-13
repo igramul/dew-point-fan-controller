@@ -58,11 +58,11 @@ class DewPointFanController(object):
 
         self._measurement.set_time_utc(time_utc)
 
-        self._sensor_indoor.measure()
-        self._measurement.set_indoor_measurement(self._sensor_indoor.temperature(), self._sensor_indoor.humidity())
+        temp_indoor, hum_indoor = self._sensor_indoor.measure()
+        self._measurement.set_indoor_measurement(temp_indoor, hum_indoor)
 
-        self._sensor_outdoor.measure()
-        self._measurement.set_outdoor_measurement(self._sensor_outdoor.temperature(), self._sensor_outdoor.humidity())
+        temp_outdoor, hum_outdoor = self._sensor_outdoor.measure()
+        self._measurement.set_outdoor_measurement(temp_outdoor, hum_outdoor)
 
         dew_point_delta = self._measurement.get_dew_point_delta()
         if dew_point_delta > (SWITCHmin + HYSTERESIS):

@@ -1,7 +1,6 @@
 # Dew Point Fan Controller
 # January 2024, by Lukas Burger
 import machine
-import dht
 import time
 import ujson
 import uasyncio as asyncio
@@ -9,6 +8,7 @@ import uasyncio as asyncio
 from measurementdata import MeasurementData
 from dewpointfancontroller import DewPointFanController
 from display import Display
+from sensor import Sensor
 from webserver import WebServer
 from wlan import MicroPythonWlan
 
@@ -27,8 +27,8 @@ fan_relay = machine.Pin(15, machine.Pin.OUT)
 touch_button = machine.Pin(12, machine.Pin.IN, machine.Pin.PULL_DOWN)
 fan_status = machine.Pin(13, machine.Pin.IN)
 
-sensor_indoor = dht.DHT22(machine.Pin(6))
-sensor_outdoor = dht.DHT22(machine.Pin(7))
+sensor_indoor = Sensor(machine.Pin(6), offset_temp=0, offset_hum=0)
+sensor_outdoor = Sensor(machine.Pin(7), offset_temp=0, offset_hum=0)
 
 display = Display(i2c=machine.I2C(1, sda=machine.Pin(2), scl=machine.Pin(3), freq=400000))
 
