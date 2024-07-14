@@ -2,16 +2,7 @@ import _thread
 import time
 import ujson
 
-METRICS = """# HELP indoor_temp Indoor temperature in degree Celsius.
-# TYPE indoor_temp gauge
-indoor_temp %f
-# HELP indoor_hum Indoor humidity in percent.
-# TYPE indoor_hum gauge
-indoor_hum %f
-# HELP indoor_dew_point Indoor dew point in degree Celsius.
-# TYPE indoor_dew_point gauge
-indoor_dew_point %f
-# HELP outdoor_temp Indoor temperature in degree Celsius.
+METRICS = """# HELP outdoor_temp Indoor temperature in degree Celsius.
 # TYPE outdoor_temp gauge
 outdoor_temp %f
 # HELP outdoor_hum Indoor humidity in percent.
@@ -20,6 +11,15 @@ outdoor_hum %f
 # HELP outdoor_dew_point Indoor dew point in degree Celsius.
 # TYPE outdoor_dew_point gauge
 outdoor_dew_point %f
+# HELP indoor_temp Indoor temperature in degree Celsius.
+# TYPE indoor_temp gauge
+indoor_temp %f
+# HELP indoor_hum Indoor humidity in percent.
+# TYPE indoor_hum gauge
+indoor_hum %f
+# HELP indoor_dew_point Indoor dew point in degree Celsius.
+# TYPE indoor_dew_point gauge
+indoor_dew_point %f
 # HELP measurement_count Counter for the measurements taken since startup.
 # TYPE measurement_count counter
 measurement_count{version="%s"} %i
@@ -93,12 +93,12 @@ class DewPointFanController(object):
         self._lock.acquire()
         data = self._measurement.get_data()
         ans = METRICS % (
-            data['indoor_temp'],
-            data['indoor_hum'],
-            data['indoor_dew_point'],
             data['outdoor_temp'],
             data['outdoor_hum'],
             data['outdoor_dew_point'],
+            data['indoor_temp'],
+            data['indoor_hum'],
+            data['indoor_dew_point'],
             self._version,
             data['counter'],
             data['fan'],
@@ -111,11 +111,11 @@ class DewPointFanController(object):
         # acquire the semaphore lock
         self._lock.acquire()
         data = self._measurement.get_data()
-        ans = 'in:  %.1f\337C, %0.1f%%\nout: %0.1f\337C, %0.1f%%\nTi: %.1f\337C To: %.1f\337C' % (
-            data['indoor_temp'],
-            data['indoor_hum'],
+        ans = 'out: %.1f\337C, %0.1f%%\nin:  %0.1f\337C, %0.1f%%\nTi: %.1f\337C To: %.1f\337C' % (
             data['outdoor_temp'],
             data['outdoor_hum'],
+            data['indoor_temp'],
+            data['indoor_hum'],
             data['indoor_dew_point'],
             data['outdoor_dew_point'])
         # release the semaphore lock
@@ -126,12 +126,12 @@ class DewPointFanController(object):
         # acquire the semaphore lock
         self._lock.acquire()
         data = self._measurement.get_data()
-        ans = '%s\nin:  %.1f&#176;C, %.1f%%\nout: %.1f&#176;C, %.1f%%\nTi: %.1f&#176;C To: %.1f&#176;C\nFan Control: %s\nFan State: %s' % (
+        ans = '%s\nout: %.1f&#176;C, %.1f%%\nin:  %.1f&#176;C, %.1f%%\nTi: %.1f&#176;C To: %.1f&#176;C\nFan Control: %s\nFan State: %s' % (
             data['time_utc'],
-            data['indoor_temp'],
-            data['indoor_hum'],
             data['outdoor_temp'],
             data['outdoor_hum'],
+            data['indoor_temp'],
+            data['indoor_hum'],
             data['indoor_dew_point'],
             data['outdoor_dew_point'],
             data['fan'],

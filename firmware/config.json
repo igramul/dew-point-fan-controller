@@ -20,13 +20,13 @@
         }
     },
     "Calibration": {
-        "SensorIndoor": {
-            "offset-temp": -1.0,
+        "SensorOutdoor": {
+            "offset-temp": -0.6,
             "offset-hum": 0.0
         },
-        "SensorOutdoor": {
-            "offset-temp": -0.9,
-            "offset-hum": -0.5
+        "SensorIndoor": {
+            "offset-temp": -0.8,
+            "offset-hum": 0.5
         }
     }
 }
