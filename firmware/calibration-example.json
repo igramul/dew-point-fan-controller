@@ -1,0 +1,21 @@
+{
+    "CalibrationData": {
+        "DHT22": [
+            {
+                "name": "SNC1222400D88-J",
+                "offset-temp": -0.6,
+                "offset-hum": 0.0
+            },
+            {
+                "name": "DHT22-0001",
+                "offset-temp": 0.0,
+                "offset-hum": 0.0
+            },
+            {
+                "name": "DHT22-0002",
+                "offset-temp": -0.8,
+                "offset-hum": 0.5
+            }
+        ]
+    }
+}

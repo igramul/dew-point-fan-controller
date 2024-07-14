@@ -5,3 +5,4 @@ __pycache__/
 /venv/
 firmware/version.py
 firmware/secrets.json
+firmware/calibration.json

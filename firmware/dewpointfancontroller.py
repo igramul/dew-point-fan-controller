@@ -33,11 +33,11 @@ fan_state %i"""
 
 class DewPointFanController(object):
 
-    def __init__(self, sensor_indoor, sensor_outdoor, version, measurement_data, config):
+    def __init__(self, sensor_outdoor, sensor_indoor, version, measurement_data, config):
         # create a semaphore (A.K.A lock)
         self._lock = _thread.allocate_lock()
-        self._sensor_indoor = sensor_indoor
         self._sensor_outdoor = sensor_outdoor
+        self._sensor_indoor = sensor_indoor
         self._measurement = measurement_data
         self._fan_status = None
         self._version = version
@@ -59,11 +59,11 @@ class DewPointFanController(object):
 
         self._measurement.set_time_utc(time_utc)
 
-        temp_indoor, hum_indoor = self._sensor_indoor.measure()
-        self._measurement.set_indoor_measurement(temp_indoor, hum_indoor)
-
         temp_outdoor, hum_outdoor = self._sensor_outdoor.measure()
         self._measurement.set_outdoor_measurement(temp_outdoor, hum_outdoor)
+
+        temp_indoor, hum_indoor = self._sensor_indoor.measure()
+        self._measurement.set_indoor_measurement(temp_indoor, hum_indoor)
 
         dew_point_delta = self._measurement.get_dew_point_delta()
         if dew_point_delta > (SWITCHmin + HYSTERESIS):

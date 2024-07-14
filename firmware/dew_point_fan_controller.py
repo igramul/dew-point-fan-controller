@@ -8,7 +8,7 @@ import uasyncio as asyncio
 from measurementdata import MeasurementData
 from dewpointfancontroller import DewPointFanController
 from display import Display
-from sensor import Sensor
+from sensor import SensorDHT22
 from webserver import WebServer
 from wlan import MicroPythonWlan
 
@@ -27,15 +27,15 @@ fan_relay = machine.Pin(15, machine.Pin.OUT)
 touch_button = machine.Pin(12, machine.Pin.IN, machine.Pin.PULL_DOWN)
 fan_status = machine.Pin(13, machine.Pin.IN)
 
-sensor_indoor = Sensor(machine_pin=machine.Pin(6), config=config.get('Calibration').get('SensorIndoor'))
-sensor_outdoor = Sensor(machine_pin=machine.Pin(7), config=config.get('Calibration').get('SensorOutdoor'))
+sensor_outdoor = SensorDHT22(machine_pin=machine.Pin(7), name='DHT22-0001')
+sensor_indoor = SensorDHT22(machine_pin=machine.Pin(6), name='DHT22-0002')
 
 display = Display(i2c=machine.I2C(1, sda=machine.Pin(2), scl=machine.Pin(3), freq=400000))
 
 measurement_data = MeasurementData()
 dew_point_fan_controller = DewPointFanController(
-    sensor_indoor=sensor_indoor,
     sensor_outdoor=sensor_outdoor,
+    sensor_indoor=sensor_indoor,
     version=version,
     measurement_data=measurement_data,
     config=config.get('DewPointFanController')
