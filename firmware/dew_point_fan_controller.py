@@ -27,7 +27,7 @@ fan_relay = machine.Pin(15, machine.Pin.OUT)
 touch_button = machine.Pin(12, machine.Pin.IN, machine.Pin.PULL_DOWN)
 fan_status = machine.Pin(13, machine.Pin.IN)
 
-sensor_outdoor = SensorDHT22(machine_pin=machine.Pin(7), name='DHT22-0001')
+sensor_outdoor = SensorDHT22(machine_pin=machine.Pin(7), name='DHT22-0003')
 sensor_indoor = SensorDHT22(machine_pin=machine.Pin(6), name='DHT22-0002')
 
 display = Display(i2c=machine.I2C(1, sda=machine.Pin(2), scl=machine.Pin(3), freq=400000))
