@@ -28,16 +28,20 @@ class MicroPythonWlan(object):
         self._wlan = network.WLAN(network.STA_IF)
 
     def start(self):
+        self._display.lcd.write_line('Starting WLAN ...', 0)
+        self._display.lcd.write_line('--------------------', 1)
+        self._display.lcd.write_line('', 2)
+        self._display.lcd.write_line('', 3)
         for i in range(4):
             try:
                 self._wlan_connect()
             except RuntimeError as e:
-                self._display.lcd.write_line('Network Error %i' % i, 0)
-                self._display.lcd.write_line('%s' % e, 1)
+                self._display.lcd.write_line('Retry attempt #%i' % (i + 1), 3)
+                self._display.lcd.write_line('%s' % e, 2)
                 print('WLAN status:', NetworkStat[self._wlan.status()])
                 print('Exception: %s' % e)
             if self._wlan.isconnected():
-                self._display.lcd.write_line(f'Hostname: {self._config.get("Hostname")}', 2)
+                self._display.lcd.write_line(f'Hostname: {self._config.get("Hostname")}', 3)
                 break
 
     @property
@@ -64,7 +68,7 @@ class MicroPythonWlan(object):
                     if ssid.decode('utf8') == my_ssid:
                         search_wlan = False
                         print(f'  Match! WLAN credentials found.')
-                        self._display.lcd.write_line(f'WLAN: {my_ssid}', 1)
+                        self._display.lcd.write_line(f'SSID: {my_ssid}', 2)
                         self._wlan.connect(my_ssid, my_passwd)
                         break
                 if not search_wlan:

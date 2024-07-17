@@ -14,23 +14,49 @@ from wlan import MicroPythonWlan
 
 from version import version
 
+led_onboard = machine.Pin("LED", machine.Pin.OUT, value=0)
+led_onboard.on()
+
+display = Display(i2c=machine.I2C(1, sda=machine.Pin(2), scl=machine.Pin(3), freq=400000))
+display.lcd.write_line('Dew Point Fan Contr.', 0)
+display.lcd.write_line('--------------------', 1)
+display.lcd.write_line(f'Version {version}', 2)
+display.lcd.write_line('lburger@igramul.ch', 3)
+display.illuminate()
+
+led_wlan = machine.Pin(0, machine.Pin.OUT)
+led_wlan.on()
+
+touch_button = machine.Pin(12, machine.Pin.IN, machine.Pin.PULL_DOWN)
+fan_status = machine.Pin(13, machine.Pin.IN)
+fan_relay = machine.Pin(15, machine.Pin.OUT)
+led_fan_status = machine.Pin(18, machine.Pin.OUT, value=0)
+led_fan_status.on()
+
+# time to read start screen. Turn LEDs off
+time.sleep(2)
+led_onboard.off()
+led_wlan.off()
+led_fan_status.off()
+
+sensor_outdoor = SensorDHT22(machine_pin=machine.Pin(7), location='outdoor')
+sensor_indoor = SensorDHT22(machine_pin=machine.Pin(6), location='indoor')
+
+print(f'Outdoor: {sensor_outdoor.name}')
+print(f'ot: {sensor_outdoor.offset_temp} oh: {sensor_outdoor.offset_hum}')
+
+# display sensor data
+display.lcd.write_line(f'Outdoor: {sensor_outdoor.name}', 0)
+display.lcd.write_line(f'ot: {sensor_outdoor.offset_temp} oh: {sensor_outdoor.offset_hum}', 1)
+display.lcd.write_line(f'Indoor: {sensor_indoor.name}', 2)
+display.lcd.write_line(f'ot: {sensor_indoor.offset_temp} oh: {sensor_indoor.offset_hum}', 3)
+time.sleep(2)
+
 with open('config.json') as fp:
     config = ujson.loads(fp.read())
 
 with open('secrets.json') as fp:
     secrets = ujson.loads(fp.read())
-
-led_onboard = machine.Pin("LED", machine.Pin.OUT, value=0)
-led_wlan = machine.Pin(0, machine.Pin.OUT)
-led_fan_status = machine.Pin(18, machine.Pin.OUT, value=0)
-fan_relay = machine.Pin(15, machine.Pin.OUT)
-touch_button = machine.Pin(12, machine.Pin.IN, machine.Pin.PULL_DOWN)
-fan_status = machine.Pin(13, machine.Pin.IN)
-
-sensor_outdoor = SensorDHT22(machine_pin=machine.Pin(7), name='DHT22-0003')
-sensor_indoor = SensorDHT22(machine_pin=machine.Pin(6), name='DHT22-0002')
-
-display = Display(i2c=machine.I2C(1, sda=machine.Pin(2), scl=machine.Pin(3), freq=400000))
 
 measurement_data = MeasurementData()
 dew_point_fan_controller = DewPointFanController(
@@ -40,7 +66,7 @@ dew_point_fan_controller = DewPointFanController(
     measurement_data=measurement_data,
     config=config.get('DewPointFanController')
 )
-web_server = WebServer(dew_point_fan_controller=dew_point_fan_controller)
+
 wlan = MicroPythonWlan(config=config, secrets=secrets, led=led_wlan, display=display)
 
 
@@ -75,6 +101,7 @@ async def main():
 
     if wlan.is_connected:
         print('Setting up Webserver')
+        web_server = WebServer(dew_point_fan_controller=dew_point_fan_controller)
         asyncio.create_task(asyncio.start_server(web_server.serve_client, '0.0.0.0', 80))
 
     print('Running Dew Point Fan Controller')
@@ -88,12 +115,6 @@ async def main():
         await asyncio.sleep(0.25)
         led_onboard.off()
         await asyncio.sleep(2)
-
-display.lcd.write_line('Dew Point Fan Contr.', 0)
-display.lcd.write_line('--------------------', 1)
-display.lcd.write_line(f'Version {version}', 2)
-display.lcd.write_line('lburger@igramul.ch', 3)
-display.illuminate()
 
 touch_button.irq(lambda irq: display.illuminate(), machine.Pin.IRQ_RISING)
 

@@ -29,6 +29,7 @@ install-config: $(BIN)/rshell
 	$(BIN)/rshell "repl ~ import machine ~ machine.soft_reset() ~"
 	$(BIN)/rshell connect
 	$(BIN)/rshell cp config.json $(TARGET)
+	$(BIN)/rshell cp calibration.json $(TARGET)
 	$(BIN)/rshell "repl ~ import machine ~ machine.soft_reset() ~"
 
 $(BIN)/rshell: venv venv-update
