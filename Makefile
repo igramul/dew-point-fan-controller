@@ -2,7 +2,7 @@
 PYTHON = python3
 BIN    = ./venv/bin
 TARGET = /pyboard
-
+CONFIG = "firmware/config.json firmware/secrets.json firmware/calibration.json"
 
 .PHONY: firmware/version.py
 firmware/version.py:
@@ -17,12 +17,12 @@ all: install
 
 .PHONY: install
 install: $(BIN)/rshell firmware/version.py
-	#$(BIN)/rshell "repl ~ import machine ~ machine.soft_reset() ~"
-	#$(BIN)/rshell connect
+	# $(BIN)/rshell "repl ~ import machine ~ machine.soft_reset() ~"
+	# $(BIN)/rshell connect
 	$(BIN)/rshell cp -r firmware/micropython_i2c_lcd $(TARGET)
 	$(BIN)/rshell cp firmware/*.py $(TARGET)
-	$(BIN)/rshell cp firmware/*.json $(TARGET)
-	#$(BIN)/rshell "repl ~ import machine ~ machine.soft_reset() ~"
+	# $(BIN)/rshell cp $(CONFIG) $(TARGET)
+	# $(BIN)/rshell "repl ~ import machine ~ machine.soft_reset() ~"
 
 $(BIN)/rshell: venv venv-update
 	$(BIN)/pip install rshell
@@ -36,7 +36,7 @@ venv-update: venv
 
 .PHONY:
 clean:
-	rm firmware/version.py
+	rm -f firmware/version.py
 
 .PHONY: venv-clean
 venv-clean:
