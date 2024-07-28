@@ -125,16 +125,15 @@ class DewPointFanController(object):
     def get_metrics(self):
         # acquire the semaphore lock
         self._lock.acquire()
-        data = self._measurement.get_data()
         ans = METRICS % (
-            data['outdoor_temp'],
-            data['outdoor_hum'],
-            data['outdoor_dew_point'],
-            data['indoor_temp'],
-            data['indoor_hum'],
-            data['indoor_dew_point'],
+            self._measurement.outdoor_temp,
+            self._measurement.outdoor_hum,
+            self._measurement.outdoor_dew_point,
+            self._measurement.indoor_temp,
+            self._measurement.indoor_hum,
+            self._measurement.indoor_dew_point,
             self._version,
-            data['counter'],
+            self._measurement.counter,
             self._fan_control_status,
             self._pin_fan_status.value())
         # release the semaphore lock
@@ -144,15 +143,14 @@ class DewPointFanController(object):
     def get_measure_html(self):
         # acquire the semaphore lock
         self._lock.acquire()
-        data = self._measurement.get_data()
         ans = '%s\nout: %.1f&#176;C, %.1f%%\nin:  %.1f&#176;C, %.1f%%\nTi: %.1f&#176;C To: %.1f&#176;C\nFan Control: %s\nFan State: %s' % (
-            data['time_utc'],
-            data['outdoor_temp'],
-            data['outdoor_hum'],
-            data['indoor_temp'],
-            data['indoor_hum'],
-            data['indoor_dew_point'],
-            data['outdoor_dew_point'],
+            self._measurement.time_utc,
+            self._measurement.outdoor_temp,
+            self._measurement.outdoor_hum,
+            self._measurement.indoor_temp,
+            self._measurement.indoor_hum,
+            self._measurement.indoor_dew_point,
+            self._measurement.outdoor_dew_point,
             bool(self._fan_control_status),
             bool(self._pin_fan_status.value()))
         # release the semaphore lock
