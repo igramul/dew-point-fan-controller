@@ -24,6 +24,10 @@ install: $(BIN)/rshell firmware/version.py
 	# $(BIN)/rshell cp $(CONFIG) $(TARGET)
 	# $(BIN)/rshell "repl ~ import machine ~ machine.soft_reset() ~"
 
+.PHONY: reset
+reset: $(BIN)/rshell
+	$(BIN)/rshell "repl ~ import machine ~ machine.soft_reset() ~"
+
 $(BIN)/rshell: venv venv-update
 	$(BIN)/pip install rshell
 
