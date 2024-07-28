@@ -33,27 +33,36 @@ fan_state %i"""
 
 class DewPointFanController(object):
 
-    def __init__(self, sensor_outdoor, sensor_indoor, version, measurement_data, config):
+    def __init__(self,
+                 led_fan_control,
+                 pin_fan_control,
+                 pin_fan_status,
+                 sensor_outdoor,
+                 sensor_indoor,
+                 display,
+                 version,
+                 measurement_data,
+                 config):
         # create a semaphore (A.K.A lock)
         self._lock = _thread.allocate_lock()
+        self._led_fan_control = led_fan_control
+        self._pin_fan_control = pin_fan_control
+        self._pin_fan_status = pin_fan_status
         self._sensor_outdoor = sensor_outdoor
         self._sensor_indoor = sensor_indoor
+        self._display = display
         self._measurement = measurement_data
         self._version = version
         self._config = config
-        self._fan_control = None
-        self._fan_status = None
 
-    def measure(self, time_utc):
+        # this value stores the fan state (default off)
+        self._fan_control_status = False
+
+    def measure_control(self, time_utc):
         start = time.ticks_us()
 
         # acquire the semaphore lock
         self._lock.acquire()
-
-        SWITCHmin = self._config.get('switch-min').get('value')  # minimum dew point difference at which the fan switches
-        HYSTERESIS = self._config.get('hysteresis').get('value')  # distance from switch-on and switch-off point
-        TEMP_indoor_min = self._config.get('temp-indoor-min').get('value')  # minimum indoor temperature at which the ventilation is activated
-        TEMP_outdoor_min = self._config.get('temp-outdoor-min').get('value')  # minimum outdoor temperature at which the ventilation is activated
 
         self._measurement.set_time_utc(time_utc)
 
@@ -64,27 +73,49 @@ class DewPointFanController(object):
         self._measurement.set_indoor_measurement(temp_indoor, hum_indoor)
 
         dew_point_delta = self._measurement.get_dew_point_delta()
-        if dew_point_delta > (SWITCHmin + HYSTERESIS):
-            self._fan_control = True
-        if dew_point_delta < SWITCHmin:
-            self._fan_control = False
-        if self._measurement.indoor_temp < TEMP_indoor_min:
-            self._fan_control = False
-        if self._measurement.outdoor_temp < TEMP_outdoor_min:
-            self._fan_control = False
+
+        # minimum dew point difference at which the fan switches
+        switch_min = self._config.get('switch-min').get('value')
+
+        # distance from switch-on and switch-off point
+        hysteresis = self._config.get('hysteresis').get('value')
+
+        # minimum indoor temperature at which the ventilation is activated
+        temp_indoor_min = self._config.get('temp-indoor-min').get('value')
+
+        # minimum outdoor temperature at which the ventilation is activated
+        temp_outdoor_min = self._config.get('temp-outdoor-min').get('value')
+
+        if dew_point_delta > (switch_min + hysteresis):
+            self._fan_control_status = True
+        if dew_point_delta < switch_min:
+            self._fan_control_status = False
+        if self._measurement.indoor_temp < temp_indoor_min:
+            self._fan_control_status = False
+        if self._measurement.outdoor_temp < temp_outdoor_min:
+            self._fan_control_status = False
+
+        # apply fan_control to the output pins for LED and relay control
+        self._led_fan_control = self._pin_fan_control = self._fan_control_status
 
         self._measurement.counter += 1
+
+        # update display
+        self._display.lcd.write_line('out: %.1f\337C, %0.1f%%' % (
+            self._measurement.outdoor_temp,
+            self._measurement.outdoor_hum), 1)
+
+        self._display.lcd.write_line('in:  %0.1f\337C, %0.1f%%' % (
+            self._measurement.indoor_temp,
+            self._measurement.indoor_hum), 2)
+
+        self._display.lcd.write_line('Ti: %.1f\337C To: %.1f\337C' % (
+            self._measurement.indoor_dew_point,
+            self._measurement.outdoor_dew_point), 3)
 
         # release the semaphore lock
         self._lock.release()
         print('Measure: {}, Duration: {} us'.format(time_utc, time.ticks_diff(time.ticks_us(), start)))
-
-    @property
-    def fan_control(self):
-        return self._fan_control
-
-    def set_fan_status(self, fan_status):
-        self._fan_status = fan_status
 
     def get_metrics(self):
         # acquire the semaphore lock
@@ -99,28 +130,11 @@ class DewPointFanController(object):
             data['indoor_dew_point'],
             self._version,
             data['counter'],
-            self._fan_control,
-            self._fan_status)
+            self._fan_control_status,
+            self._pin_fan_status.value())
         # release the semaphore lock
         self._lock.release()
         return ans
-
-    def get_display_lines(self):
-        # acquire the semaphore lock
-        self._lock.acquire()
-        data = self._measurement.get_data()
-        line_outdoor = 'out: %.1f\337C, %0.1f%%' % (
-            self._measurement.outdoor_temp,
-            self._measurement.outdoor_hum)
-        line_indoor = 'in:  %0.1f\337C, %0.1f%%' % (
-            self._measurement.indoor_temp,
-            self._measurement.indoor_hum)
-        line_dew_points = 'Ti: %.1f\337C To: %.1f\337C' % (
-            self._measurement.indoor_dew_point,
-            self._measurement.outdoor_dew_point)
-        # release the semaphore lock
-        self._lock.release()
-        return line_indoor, line_outdoor, line_dew_points
 
     def get_measure_html(self):
         # acquire the semaphore lock
@@ -134,8 +148,8 @@ class DewPointFanController(object):
             data['indoor_hum'],
             data['indoor_dew_point'],
             data['outdoor_dew_point'],
-            bool(self._fan_control),
-            bool(self._fan_status))
+            bool(self._fan_control_status),
+            bool(self._pin_fan_status.value()))
         # release the semaphore lock
         self._lock.release()
         return ans
