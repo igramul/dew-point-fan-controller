@@ -1,14 +1,5 @@
 class WebServer(object):
 
-    HTML = """<!DOCTYPE html>
-    <html>
-        <head> <title>Dew Point Fan Controller</title> </head>
-        <body> <h1>Dew Point Fan Controller</h1>
-            <p>%s</p>
-        </body>
-    </html>
-    """
-
     def __init__(self, dew_point_fan_controller):
         self._dew_point_fan_controller = dew_point_fan_controller
 
@@ -26,7 +17,7 @@ class WebServer(object):
         if metrics == 6:
             response = self._dew_point_fan_controller.get_metrics()
         else:
-            response = self.HTML % f'<pre>{self._dew_point_fan_controller.get_measure_html()}</pre>'
+            response = self._dew_point_fan_controller.get_html()
 
         writer.write('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
         writer.write(response)

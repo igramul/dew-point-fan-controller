@@ -1,6 +1,15 @@
 import _thread
 import time
 
+HTML = """<!DOCTYPE html>
+<html>
+    <head> <title>Dew Point Fan Controller</title> </head>
+    <body> <h1>Dew Point Fan Controller</h1>
+        <p>%s</p>
+    </body>
+</html>
+"""
+
 METRICS = """# HELP outdoor_temp Indoor temperature in degree Celsius.
 # TYPE outdoor_temp gauge
 outdoor_temp %f
@@ -146,7 +155,7 @@ class DewPointFanController(object):
         self._lock.release()
         return ans
 
-    def get_measure_html(self):
+    def get_html(self):
         # acquire the semaphore lock
         self._lock.acquire()
         ans = '%s\nout: %.1f&#176;C, %.1f%%\nin:  %.1f&#176;C, %.1f%%\nTi: %.1f&#176;C To: %.1f&#176;C\nFan Control: %s\nFan State: %s' % (
@@ -159,6 +168,7 @@ class DewPointFanController(object):
             self._measurement.outdoor_dew_point,
             bool(self._fan_control_status),
             bool(self._pin_fan_status.value()))
+        ans2 = HTML % f'<pre>{ans}</pre>'
         # release the semaphore lock
         self._lock.release()
-        return ans
+        return ans2
