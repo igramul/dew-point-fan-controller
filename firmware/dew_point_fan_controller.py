@@ -91,7 +91,7 @@ def measurement(time_utc):
     relay_control.value(dew_point_fan_controller.fan_control)
     led_fan_control.value(dew_point_fan_controller.fan_control)
     dew_point_fan_controller.set_fan_status(fan_status.value())
-    for idx, line in enumerate(dew_point_fan_controller.get_lcd_string().splitlines()):
+    for idx, line in enumerate(dew_point_fan_controller.get_display_lines()):
         display.lcd.write_line(line, idx+1)
 
 

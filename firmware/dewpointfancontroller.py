@@ -105,20 +105,22 @@ class DewPointFanController(object):
         self._lock.release()
         return ans
 
-    def get_lcd_string(self):
+    def get_display_lines(self):
         # acquire the semaphore lock
         self._lock.acquire()
         data = self._measurement.get_data()
-        ans = 'out: %.1f\337C, %0.1f%%\nin:  %0.1f\337C, %0.1f%%\nTi: %.1f\337C To: %.1f\337C' % (
-            data['outdoor_temp'],
-            data['outdoor_hum'],
-            data['indoor_temp'],
-            data['indoor_hum'],
-            data['indoor_dew_point'],
-            data['outdoor_dew_point'])
+        line_outdoor = 'out: %.1f\337C, %0.1f%%' % (
+            self._measurement.outdoor_temp,
+            self._measurement.outdoor_hum)
+        line_indoor = 'in:  %0.1f\337C, %0.1f%%' % (
+            self._measurement.indoor_temp,
+            self._measurement.indoor_hum)
+        line_dew_points = 'Ti: %.1f\337C To: %.1f\337C' % (
+            self._measurement.indoor_dew_point,
+            self._measurement.outdoor_dew_point)
         # release the semaphore lock
         self._lock.release()
-        return ans
+        return line_indoor, line_outdoor, line_dew_points
 
     def get_measure_html(self):
         # acquire the semaphore lock
