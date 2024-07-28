@@ -11,7 +11,6 @@ class MeasurementData(object):
         self.outdoor_hum = None
         self.outdoor_dew_point = None
         self.time_utc = ''
-        self.fan = False
         self.counter = 0
 
     def set_indoor_measurement(self, temp, hum):
@@ -36,7 +35,6 @@ class MeasurementData(object):
             "outdoor_hum": self.outdoor_hum,
             "outdoor_dew_point": self.outdoor_dew_point,
             "time_utc": self.time_utc,
-            "fan": self.fan,
             "counter": self.counter}
 
     def get_dew_point_delta(self):

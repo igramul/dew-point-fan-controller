@@ -29,15 +29,15 @@ led_wlan.on()
 
 touch_button = machine.Pin(12, machine.Pin.IN, machine.Pin.PULL_DOWN)
 fan_status = machine.Pin(13, machine.Pin.IN)
-fan_relay = machine.Pin(15, machine.Pin.OUT)
-led_fan_status = machine.Pin(18, machine.Pin.OUT, value=0)
-led_fan_status.on()
+relay_control = machine.Pin(15, machine.Pin.OUT)
+led_fan_control = machine.Pin(18, machine.Pin.OUT, value=0)
+led_fan_control.on()
 
 # time to read start screen. Turn LEDs off
 time.sleep(2)
 led_onboard.off()
 led_wlan.off()
-led_fan_status.off()
+led_fan_control.off()
 
 sensor_outdoor = SensorDHT22(machine_pin=machine.Pin(7), location='outdoor')
 sensor_indoor = SensorDHT22(machine_pin=machine.Pin(6), location='indoor')
@@ -88,8 +88,8 @@ def tick(timer):
 
 def measurement(time_utc):
     dew_point_fan_controller.measure(time_utc)
-    fan_relay.value(dew_point_fan_controller.fan)
-    led_fan_status.value(dew_point_fan_controller.fan)
+    relay_control.value(dew_point_fan_controller.fan_control)
+    led_fan_control.value(dew_point_fan_controller.fan_control)
     dew_point_fan_controller.set_fan_status(fan_status.value())
     for idx, line in enumerate(dew_point_fan_controller.get_lcd_string().splitlines()):
         display.lcd.write_line(line, idx+1)

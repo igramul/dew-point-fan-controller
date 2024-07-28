@@ -39,9 +39,10 @@ class DewPointFanController(object):
         self._sensor_outdoor = sensor_outdoor
         self._sensor_indoor = sensor_indoor
         self._measurement = measurement_data
-        self._fan_status = None
         self._version = version
         self._config = config
+        self._fan_control = None
+        self._fan_status = None
 
     def measure(self, time_utc):
         start = time.ticks_us()
@@ -64,13 +65,13 @@ class DewPointFanController(object):
 
         dew_point_delta = self._measurement.get_dew_point_delta()
         if dew_point_delta > (SWITCHmin + HYSTERESIS):
-            self._measurement.fan = True
+            self._fan_control = True
         if dew_point_delta < SWITCHmin:
-            self._measurement.fan = False
+            self._fan_control = False
         if self._measurement.indoor_temp < TEMP_indoor_min:
-            self._measurement.fan = False
+            self._fan_control = False
         if self._measurement.outdoor_temp < TEMP_outdoor_min:
-            self._measurement.fan = False
+            self._fan_control = False
 
         self._measurement.counter += 1
 
@@ -79,8 +80,8 @@ class DewPointFanController(object):
         print('Measure: {}, Duration: {} us'.format(time_utc, time.ticks_diff(time.ticks_us(), start)))
 
     @property
-    def fan(self):
-        return self._measurement.fan
+    def fan_control(self):
+        return self._fan_control
 
     def set_fan_status(self, fan_status):
         self._fan_status = fan_status
@@ -98,7 +99,7 @@ class DewPointFanController(object):
             data['indoor_dew_point'],
             self._version,
             data['counter'],
-            data['fan'],
+            self._fan_control,
             self._fan_status)
         # release the semaphore lock
         self._lock.release()
@@ -131,7 +132,7 @@ class DewPointFanController(object):
             data['indoor_hum'],
             data['indoor_dew_point'],
             data['outdoor_dew_point'],
-            data['fan'],
+            bool(self._fan_control),
             bool(self._fan_status))
         # release the semaphore lock
         self._lock.release()
