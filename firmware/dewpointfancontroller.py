@@ -96,7 +96,12 @@ class DewPointFanController(object):
             self._fan_control_status = False
 
         # apply fan_control to the output pins for LED and relay control
-        self._led_fan_control = self._pin_fan_control = self._fan_control_status
+        if self._fan_control_status:
+            self._led_fan_control.on()
+            self._pin_fan_control.on()
+        else:
+            self._led_fan_control.off()
+            self._pin_fan_control.off()
 
         self._measurement.counter += 1
 
