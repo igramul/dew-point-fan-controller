@@ -1,6 +1,5 @@
 import _thread
 import time
-import ujson
 
 METRICS = """# HELP outdoor_temp Indoor temperature in degree Celsius.
 # TYPE outdoor_temp gauge
@@ -23,8 +22,11 @@ indoor_dew_point %f
 # HELP measurement_count Counter for the measurements taken since startup.
 # TYPE measurement_count counter
 measurement_count{version="%s"} %i
+# HELP measure_control_duration duration of the measure_control function in micro seconds
+# TYPE measure_control_duration gauge
+measure_control_duration %i
 # HELP fan_control Fan Control (1: on, 0: off)
-# TYPE fan_contoll gauge
+# TYPE fan_control gauge
 fan_control %i
 # HELP fan_state Fan state (1: on, 0: off)
 # TYPE fan_state gauge
@@ -57,12 +59,13 @@ class DewPointFanController(object):
 
         # this value stores the fan state (default off)
         self._fan_control_status = False
+        self._measure_control_duration = None
 
     def measure_control(self, time_utc):
-        start = time.ticks_us()
-
         # acquire the semaphore lock
         self._lock.acquire()
+
+        start = time.ticks_us()
 
         self._measurement.set_time_utc(time_utc)
 
@@ -118,9 +121,11 @@ class DewPointFanController(object):
             self._measurement.indoor_dew_point,
             self._measurement.outdoor_dew_point), 3)
 
+        self._measure_control_duration = time.ticks_diff(time.ticks_us(), start)
+
         # release the semaphore lock
         self._lock.release()
-        print('Measure: {}, Duration: {} us'.format(time_utc, time.ticks_diff(time.ticks_us(), start)))
+        print('Measure: {}, Duration: {} us'.format(time_utc, self._measure_control_duration))
 
     def get_metrics(self):
         # acquire the semaphore lock
@@ -134,6 +139,7 @@ class DewPointFanController(object):
             self._measurement.indoor_dew_point,
             self._version,
             self._measurement.counter,
+            self._measure_control_duration,
             self._fan_control_status,
             self._pin_fan_status.value())
         # release the semaphore lock
