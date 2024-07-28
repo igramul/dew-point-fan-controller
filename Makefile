@@ -17,12 +17,10 @@ all: install
 
 .PHONY: install
 install: $(BIN)/rshell firmware/version.py
-	# $(BIN)/rshell "repl ~ import machine ~ machine.soft_reset() ~"
 	# $(BIN)/rshell connect
 	$(BIN)/rshell cp -r firmware/micropython_i2c_lcd $(TARGET)
 	$(BIN)/rshell cp firmware/*.py $(TARGET)
 	# $(BIN)/rshell cp $(CONFIG) $(TARGET)
-	# $(BIN)/rshell "repl ~ import machine ~ machine.soft_reset() ~"
 
 .PHONY: reset
 reset: $(BIN)/rshell
