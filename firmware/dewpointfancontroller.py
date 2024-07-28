@@ -49,9 +49,6 @@ class DewPointFanController(object):
         # acquire the semaphore lock
         self._lock.acquire()
 
-        with open('config.json') as fp:
-            config = ujson.loads(fp.read()).get('DewPointFanController')
-
         SWITCHmin = self._config.get('switch-min').get('value')  # minimum dew point difference at which the fan switches
         HYSTERESIS = self._config.get('hysteresis').get('value')  # distance from switch-on and switch-off point
         TEMP_indoor_min = self._config.get('temp-indoor-min').get('value')  # minimum indoor temperature at which the ventilation is activated
