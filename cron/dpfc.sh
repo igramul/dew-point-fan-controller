@@ -20,6 +20,12 @@ PROMETHEUS_QUERY_URL="http://nisset:8080/api/v1/query?query="
 SWITCH_URL="http://192.168.10.44/relay"
 
 indoor_temp=$(curl -s "${PROMETHEUS_QUERY_URL}avg_over_time(indoor_temp\[5m\])" | jq --raw-output .data.result[0].value[1])
+
+if [ "${indoor_temp}" == "null" ]; then
+  echo "can not calculate new fan state because measurement value is null"
+  exit
+fi
+
 outdoor_temp=$(curl -s "${PROMETHEUS_QUERY_URL}avg_over_time(outdoor_temp\[5m\])" | jq --raw-output .data.result[0].value[1])
 indoor_dew_point=$(curl -s "${PROMETHEUS_QUERY_URL}avg_over_time(indoor_dew_point\[5m\])" | jq --raw-output .data.result[0].value[1])
 outdoor_dew_point=$(curl -s "${PROMETHEUS_QUERY_URL}avg_over_time(outdoor_dew_point\[5m\])" | jq --raw-output .data.result[0].value[1])
