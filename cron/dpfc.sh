@@ -19,10 +19,10 @@ temp_outdoor_min=-10.0
 PROMETHEUS_QUERY_URL="http://nisset:8080/api/v1/query?query="
 SWITCH_URL="http://192.168.10.44/relay"
 
-indoor_temp=$(curl -s "${PROMETHEUS_QUERY_URL}avg_over_time(indoor_temp\[15m\])" | jq --raw-output .data.result[0].value[1])
-outdoor_temp=$(curl -s "${PROMETHEUS_QUERY_URL}avg_over_time(outdoor_temp\[15m\])" | jq --raw-output .data.result[0].value[1])
-indoor_dew_point=$(curl -s "${PROMETHEUS_QUERY_URL}avg_over_time(indoor_dew_point\[15m\])" | jq --raw-output .data.result[0].value[1])
-outdoor_dew_point=$(curl -s "${PROMETHEUS_QUERY_URL}avg_over_time(outdoor_dew_point\[15m\])" | jq --raw-output .data.result[0].value[1])
+indoor_temp=$(curl -s "${PROMETHEUS_QUERY_URL}avg_over_time(indoor_temp\[5m\])" | jq --raw-output .data.result[0].value[1])
+outdoor_temp=$(curl -s "${PROMETHEUS_QUERY_URL}avg_over_time(outdoor_temp\[5m\])" | jq --raw-output .data.result[0].value[1])
+indoor_dew_point=$(curl -s "${PROMETHEUS_QUERY_URL}avg_over_time(indoor_dew_point\[5m\])" | jq --raw-output .data.result[0].value[1])
+outdoor_dew_point=$(curl -s "${PROMETHEUS_QUERY_URL}avg_over_time(outdoor_dew_point\[5m\])" | jq --raw-output .data.result[0].value[1])
 
 echo "indoor_temp=${indoor_temp} indoor_dew_point=${indoor_dew_point}"
 echo "outdoor_temp=${outdoor_temp} outdoor_dew_point=${outdoor_dew_point}"
